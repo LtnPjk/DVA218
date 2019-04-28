@@ -1,7 +1,7 @@
 /* File: server.c
  * Trying out socket communication between processes using the Internet protocol family.
  */
-
+#include <string.h>
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -13,7 +13,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-#define PORT 5555
+#define PORT 5554
 #define MAXMSG 512
 
 /* makeSocket
@@ -78,6 +78,15 @@ int readMessageFromClient(int fileDescriptor) {
   return(0);
 }
 
+void writeMessage(int fileDescriptor, char *message) {
+  int nOfBytes;
+  nOfBytes = write(fileDescriptor, message, strlen(message) + 1);
+  if(nOfBytes < 0) {
+    perror("writeMessage - Could not write data\n");
+    exit(EXIT_FAILURE);
+  }
+}
+
 int main(int argc, char *argv[]) {
   int sock;
   int clientSocket;
@@ -119,6 +128,8 @@ int main(int argc, char *argv[]) {
 	    perror("Could not accept connection\n");
 	    exit(EXIT_FAILURE);
 	  }
+      char message[] = "hello i hear you\0";
+      writeMessage(clientSocket, message);
 	  printf("Server: Connect from client %s, port %d\n", 
 		 inet_ntoa(clientName.sin_addr), 
 		 ntohs(clientName.sin_port));
@@ -134,3 +145,4 @@ int main(int argc, char *argv[]) {
       }
   }
 }
+

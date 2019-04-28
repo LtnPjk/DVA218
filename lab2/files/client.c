@@ -14,10 +14,10 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-#define PORT 5555
+#define PORT 5554
 #define hostNameLength 50
 #define messageLength  256
-
+#define MAXMSG 512
 /* initSocketAddress
  * Initialises a sockaddr_in struct given a host name and a port.
  */
@@ -50,6 +50,25 @@ void writeMessage(int fileDescriptor, char *message) {
   }
 }
 
+int readMessageFromServer(int fileDescriptor) {
+  char buffer[MAXMSG];
+  int nOfBytes;
+
+  nOfBytes = read(fileDescriptor, buffer, MAXMSG);
+  if(nOfBytes < 0) {
+    perror("Could not read data from server\n");
+    exit(EXIT_FAILURE);
+  }
+  else
+    if(nOfBytes == 0) 
+      /* End of file */
+      return(-1);
+    else 
+      /* Data read */
+      printf(">Server response: %s\n",  buffer);
+  return(0);
+}
+
 int main(int argc, char *argv[]) {
   int sock;
   struct sockaddr_in serverName;
@@ -76,6 +95,16 @@ int main(int argc, char *argv[]) {
   /* Connect to the server */
   if(connect(sock, (struct sockaddr *)&serverName, sizeof(serverName)) < 0) {
     perror("Could not connect to server\n");
+    exit(EXIT_FAILURE);
+  }
+
+  /* if(select(FD_SETSIZE, &readFdSet, NULL, NULL, NULL) < 0) { */
+  /*     perror("Select failed\n"); */
+  /*     exit(EXIT_FAILURE); */
+  /*   } */
+
+  if(readMessageFromServer(sock) == -1){
+    perror("Could not read server response");
     exit(EXIT_FAILURE);
   }
   /* Send data to the server */
