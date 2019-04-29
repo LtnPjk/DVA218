@@ -13,22 +13,25 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <pthread.h>
 
 #define PORT 5554
 #define hostNameLength 50
 #define messageLength  256
 #define MAXMSG 512
+
+int threadStatus = 0;
 /* initSocketAddress
  * Initialises a sockaddr_in struct given a host name and a port.
  */
 void initSocketAddress(struct sockaddr_in *name, char *hostName, unsigned short int port) {
   struct hostent *hostInfo; /* Contains info about the host */
   /* Socket address format set to AF_INET for Internet use. */
-  name->sin_family = AF_INET;     
+  name->sin_family = AF_INET;
   /* Set port number. The function htons converts from host byte order to network byte order.*/
-  name->sin_port = htons(port);   
+  name->sin_port = htons(port);
   /* Get info about host. */
-  hostInfo = gethostbyname(hostName); 
+  hostInfo = gethostbyname(hostName);
   if(hostInfo == NULL) {
     fprintf(stderr, "initSocketAddress - Unknown host %s\n",hostName);
     exit(EXIT_FAILURE);
@@ -37,12 +40,12 @@ void initSocketAddress(struct sockaddr_in *name, char *hostName, unsigned short 
   name->sin_addr = *(struct in_addr *)hostInfo->h_addr;
 }
 /* writeMessage
- * Writes the string message to the file (socket) 
+ * Writes the string message to the file (socket)
  * denoted by fileDescriptor.
  */
 void writeMessage(int fileDescriptor, char *message) {
   int nOfBytes;
-  
+
   nOfBytes = write(fileDescriptor, message, strlen(message) + 1);
   if(nOfBytes < 0) {
     perror("writeMessage - Could not write data\n");
@@ -50,31 +53,37 @@ void writeMessage(int fileDescriptor, char *message) {
   }
 }
 
-int readMessageFromServer(int fileDescriptor) {
+void* readMessageFromServer(int* fileDescriptor) {
   char buffer[MAXMSG];
+  //int recvNum;
   int nOfBytes;
-
-  nOfBytes = read(fileDescriptor, buffer, MAXMSG);
-  if(nOfBytes < 0) {
-    perror("Could not read data from server\n");
-    exit(EXIT_FAILURE);
+  while(1){
+    nOfBytes = read(*fileDescriptor, buffer, MAXMSG);
+    if(nOfBytes < 0) {
+        perror("Could not read data from server\n");
+        threadStatus = 1;
+        return NULL;
+    }
+    else if(nOfBytes == 0){
+        perror("Could not read server response\n");
+        threadStatus = 1;
+        return NULL;
+    }
+    else{
+        if(nOfBytes > 0)
+        printf(">Server response: %s\n",  buffer);
+    }
   }
-  else
-    if(nOfBytes == 0) 
-      /* End of file */
-      return(-1);
-    else 
-      /* Data read */
-      printf(">Server response: %s\n",  buffer);
-  return(0);
 }
+
 
 int main(int argc, char *argv[]) {
   int sock;
   struct sockaddr_in serverName;
   char hostName[hostNameLength];
   char messageString[messageLength];
-
+  pthread_t pid;
+  int err;
   /* Check arguments */
   if(argv[1] == NULL) {
     perror("Usage: client [host name]\n");
@@ -98,28 +107,27 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  /* if(select(FD_SETSIZE, &readFdSet, NULL, NULL, NULL) < 0) { */
-  /*     perror("Select failed\n"); */
-  /*     exit(EXIT_FAILURE); */
-  /*   } */
-
-  if(readMessageFromServer(sock) == -1){
-    perror("Could not read server response");
-    exit(EXIT_FAILURE);
-  }
   /* Send data to the server */
   printf("\nType something and press [RETURN] to send it to the server.\n");
   printf("Type 'quit' to nuke this program.\n");
   fflush(stdin);
+  if((err = pthread_create(&pid, NULL, (void*(*)(void*))&readMessageFromServer, &sock) != 0)){
+  printf("thread error: %s\n", strerror(errno));
+  }
   while(1) {
+    if(threadStatus == 1){
+        exit(EXIT_FAILURE);
+    }
     printf("\n>");
     fgets(messageString, messageLength, stdin);
     messageString[messageLength - 1] = '\0';
-    if(strncmp(messageString,"quit\n",messageLength) != 0)
-      writeMessage(sock, messageString);
-    else {  
-      close(sock);
-      exit(EXIT_SUCCESS);
+    if(strncmp(messageString,"quit\n",messageLength) != 0){
+        writeMessage(sock, messageString);
+    }
+    else {
+        close(sock);
+        exit(EXIT_SUCCESS);
     }
   }
 }
+
