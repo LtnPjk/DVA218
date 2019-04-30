@@ -1,0 +1,5 @@
+
+Type something and press [RETURN] to send it to the server.
+Type 'quit' to nuke this program.
+>Server: I hear you, dude...
+>Server: Client 127.0.0.1 connected
