@@ -1,0 +1,7 @@
+[waiting for connections...]
+Server: Connect from client 127.0.0.1, port 57220
+>Incoming message: hej
+
+Server: Connect from client 127.0.0.1, port 57222
+>Incoming message: hej2
+

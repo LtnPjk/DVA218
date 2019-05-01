@@ -1,5 +1,6 @@
 /* File: server.c
  * Trying out socket communication between processes using the Internet protocol family.
+ * Authors: Felix Sjöqivst and Olle Olofsson
  */
 #include <string.h>
 #include <stdio.h>
@@ -136,6 +137,8 @@ int main(int argc, char *argv[]) {
 		     * to know if we should reject or not. */
 		    if(strcmp(inet_ntoa(clientName.sin_addr), bannedip) == 0){
 			printf("Server: client %s rejected\n", inet_ntoa(clientName.sin_addr));
+			writeMessage(clientSocket, "Server: You are banned\0");
+			sleep(1);
 			close(clientSocket);
 			break;
 		    }

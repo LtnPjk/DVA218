@@ -2,6 +2,7 @@
  * Trying out socket communication between processes using the Internet protocol family.
  * Usage: client [host name], that is, if a server is running on 'lab1-6.idt.mdh.se'
  * then type 'client lab1-6.idt.mdh.se' and follow the on-screen instructions.
+ * Authors: Felix Sjöqvist and Olle Olofsson
  */
 
 #include <stdio.h>
@@ -52,7 +53,7 @@ void writeMessage(int fileDescriptor, char *message) {
 	exit(EXIT_FAILURE);
     }
 }
-
+/* Continously reads the socket and prints out whatever it contains*/
 void* readMessage(int* fileDescriptor) {
     char buffer[MAXMSG];
     int nOfBytes;
@@ -63,11 +64,11 @@ void* readMessage(int* fileDescriptor) {
 	    threadStatus = 1;
 	    return NULL;
 	}
-	else if(nOfBytes == 0){
-	    perror("Could not read server response\n");
-	    threadStatus = 1;
-	    return NULL;
-	}
+	/* else if(nOfBytes == 0){ */
+	/*     perror("Could not read server response\n"); */
+	/*     threadStatus = 1; */
+	/*     return NULL; */
+	/* } */
 	else{
 	    if(nOfBytes > 0)
 		printf(">%s\n",  buffer);
