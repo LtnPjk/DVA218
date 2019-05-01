@@ -1,5 +1,5 @@
 # Fdb version 3
-["pdflatex"] 1556736174 "report.tex" "report.pdf" "report" 1556736174
+["pdflatex"] 1556742379 "report.tex" "report.pdf" "report" 1556742608
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1550406775 3332 103109f5612ad95229751940c61aada0 ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmbx10.tfm" 1550406775 1328 c834bbb027764024c09d3d2bf908b5f0 ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1550406775 1324 c910af8c371558dc20f2d7822f66fe64 ""
@@ -32,6 +32,7 @@
   "/usr/share/texmf-dist/tex/latex/base/article.cls" 1550406775 19933 3097d1b31d3c45dc957096f554529032 ""
   "/usr/share/texmf-dist/tex/latex/base/omscmr.fd" 1550406775 2472 aa08940f0a4dc6c24ae9f943b04ae0b9 ""
   "/usr/share/texmf-dist/tex/latex/base/size10.clo" 1550406775 8294 6d6e23d5169c0d89d173f6c7e08a005a ""
+  "/usr/share/texmf-dist/tex/latex/ellipsis/ellipsis.sty" 1550406342 2829 1e9a8601fc29ebbc5ee2f4fec01daf41 ""
   "/usr/share/texmf-dist/tex/latex/etoolbox/etoolbox.sty" 1550406775 43865 f83cc2fa3767abdb988c7d2cd17c02bf ""
   "/usr/share/texmf-dist/tex/latex/geometry/geometry.sty" 1550406775 41645 0653033a985e06c69a2a9cea9a95e31a ""
   "/usr/share/texmf-dist/tex/latex/graphics/keyval.sty" 1550406775 2591 6404d0c7d28505fb38ce0d86c2e28ae7 ""
@@ -41,11 +42,12 @@
   "/usr/share/texmf-dist/tex/latex/oberdiek/kvoptions.sty" 1550406775 22417 1d9df1eb66848aa31b18a593099cf45c ""
   "/usr/share/texmf-dist/tex/latex/parskip/parskip.sty" 1550406775 4152 3f6e512e6999979e82f39978a3e61b9e ""
   "/usr/share/texmf-dist/tex/latex/tools/multicol.sty" 1550406775 30849 03c22687ffd5fa0f72f2a417c6cf4ce1 ""
+  "/usr/share/texmf-dist/tex/latex/tools/xspace.sty" 1550406775 4542 5251001fb2c96205905dbac86c51c5ab ""
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1550406775 33301 a3134070eacafb10b1f371612ce2650d ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1556544274 3106252 d5255ed7fd6ec6ea7699581e9a54cb46 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1556544273 7919196 990ca83ea310cbbfeeea4ec615eb2a33 ""
-  "report.aux" 1556736174 391 58a3eb482eef147f5f22bf21c9b0ac00 ""
-  "report.tex" 1556736174 4773 d5ee7bf598c6d1e9db2aba585e88daa8 ""
+  "report.aux" 1556742379 301 708b242d923c73dbc7d885afed6df619 ""
+  "report.tex" 1556742608 4817 b371b697375d95ed82d74b1e81b80edd ""
   (generated)
   "report.pdf"
   "report.aux"

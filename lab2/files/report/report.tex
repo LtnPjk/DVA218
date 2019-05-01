@@ -3,6 +3,7 @@
 \usepackage{multicol} %enable columns
 \usepackage[parfill]{parskip} %no paragraph indents
 \usepackage[a4paper, total={6in, 8in}]{geometry}
+\usepackage{ellipsis}
 
 \title{Lab 2 report}
 \author{Felix Sjöqvist and Olle Olofsson}
@@ -19,9 +20,9 @@ This program includes a server and one or more clients. The server process is le
 %describe how it works (at the high level, textual)
 
 \section{How it works}
-\textbf{The server} creates a socket and assigns it a name and an address. Then the socket gets put in a state where it listens for incomming connections. When a client want to connect the server notice that there is some data/input on its socket accepts the request. A new socket is created, different from the original socket, which then is used for communicating with the client. At this point the server can notice the client's IP-address and decide if it wants keep or reject the connection based on if that specific IP-address is "banned" or not, this is done by comparing the two strings with \texttt{strcmp()}. If the server chose to keep the connection, the server informs the client by sending a message "I hear you, dude..." to it, else the server closes the socket and stops the connection. The server has two sets of file descriptors/sockets, a read-set and a active-set. The active-set contains the file descriptors of all active sockets i.e. the server socket and the client sockets produced when a client is accepted. Each time a client successfully connects, the sever is broadcasting out to all the other clients that a new client has connected. This is done by looping through all sockets in the active-set (exept the sever socket) and writing a message to that socket.
+\textbf{The server} creates a socket and assigns it a name and an address. Then the socket gets put in a state where it listens for incomming connections. When a client want to connect the server notice that there is some data/input on its socket accepts the request. A new socket is created, different from the original socket, which then is used for communicating with the client. At this point the server can notice the client's IP-address and decide whether it wants keep or reject the connection based on if that specific IP-address is `banned' or not, this is done by comparing the two strings with \texttt{strcmp ()}. If the server chose to keep the connection, the server informs the client by sending a message `I hear you, dude\ldots' to it, else the server closes the socket and stops the connection. The server has two sets of file descriptors/sockets, a read-set and a active-set. The active-set contains the file descriptors of all active sockets i.e., the server socket and the client sockets produced when a client is accepted. Each time a client successfully connects, the sever is broadcasting out to all the other clients that a new client has connected. This is done by looping through all sockets in the active-set (exept the sever socket) and writing a message to that socket.
 
-\textbf{The client} creates a socket and initializes its address depending on the hostname-agrument the user put in and the port number. It then tries to connect to the the address given which in this case is the server. If the server accepts its connection, it creates a thread which is continously listening for input on its socket i.e. for incomming messages. The main thread waits for input from the user which it will then send on the socket connected to the server. If the user inputs "quit" the client closes the socket and terminates.
+\textbf{The client} creates a socket and initializes its address depending on the hostname-agrument the user put in and the port number. It then tries to connect to the the address given which in this case is the server. If the server accepts its connection, it creates a thread which is continously listening for input on its socket i.e., for incomming messages. The main thread waits for input from the user which it will then send on the socket connected to the server. If the user inputs `quit' the client closes the socket and terminates.
 
 \onecolumn
 \section{Program outputs}
@@ -62,10 +63,10 @@ This program includes a server and one or more clients. The server process is le
     Server: client 127.0.0.1 rejected
     \end{verbatim}
 \end{itemize}
-\section{code}
-\begin{itemize}
-    \item be well commented on important functions and lines of code (undocumented code will not be approved)
-    \item include meta-data on each file, such as program name, author, general description
-    \item answer the question why and now how the program works (the code itself often explains how something is done)
-\end{itemize}
+%\section{code}
+% \begin{itemize}
+%     \item be well commented on important functions and lines of code (undocumented code will not be approved)
+%     \item include meta-data on each file, such as program name, author, general description
+%     \item answer the question why and now how the program works (the code itself often explains how something is done)
+% \end{itemize}
 \end{document}

@@ -41,6 +41,10 @@ INPUT /usr/share/texmf-dist/tex/generic/oberdiek/ifvtex.sty
 INPUT /usr/share/texmf-dist/tex/generic/oberdiek/ifvtex.sty
 INPUT /usr/share/texmf-dist/tex/generic/ifxetex/ifxetex.sty
 INPUT /usr/share/texmf-dist/tex/generic/ifxetex/ifxetex.sty
+INPUT /usr/share/texmf-dist/tex/latex/ellipsis/ellipsis.sty
+INPUT /usr/share/texmf-dist/tex/latex/ellipsis/ellipsis.sty
+INPUT /usr/share/texmf-dist/tex/latex/tools/xspace.sty
+INPUT /usr/share/texmf-dist/tex/latex/tools/xspace.sty
 INPUT report.aux
 INPUT report.aux
 OUTPUT report.aux
