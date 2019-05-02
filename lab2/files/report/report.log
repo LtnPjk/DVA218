@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018/Arch Linux) (preloaded format=pdflatex 2019.4.29)  1 MAY 2019 22:26
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018/Arch Linux) (preloaded format=pdflatex 2019.5.2)  2 MAY 2019 10:48
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -218,19 +218,19 @@ LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
 ] (./report.aux) ) 
 Here is how much of TeX's memory you used:
  2965 strings out of 492616
- 41760 string characters out of 6135177
+ 41760 string characters out of 6135178
  119902 words of memory out of 5000000
  6880 multiletter control sequences out of 15000+600000
  7756 words of font info for 28 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 37i,7n,32p,1327b,217s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 37i,7n,32p,1338b,217s stack positions out of 5000i,500n,10000p,200000b,80000s
 </usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.
 pfb></usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/shar
 e/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texmf-dist/fo
 nts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/texmf-dist/fonts/type1/publi
 c/amsfonts/cm/cmr17.pfb></usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/c
 msy10.pfb></usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb>
-Output written on report.pdf (2 pages, 86750 bytes).
+Output written on report.pdf (2 pages, 86490 bytes).
 PDF statistics:
  39 PDF objects out of 1000 (max. 8388607)
  27 compressed objects within 1 object stream
