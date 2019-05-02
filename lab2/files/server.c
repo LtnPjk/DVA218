@@ -1,6 +1,7 @@
 /* File: server.c
  * Trying out socket communication between processes using the Internet protocol family.
  * Authors: Felix Sjöqivst and Olle Olofsson
+ * 2019-05-02
  */
 #include <string.h>
 #include <stdio.h>
@@ -97,7 +98,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in clientName;
     socklen_t size;
     char message[MAXMSG];
-    char bannedip[] = "127.0.0.2"; /*ip which cannot connect, own ip: 127.0.0.1 */
+    char bannedip[] = "127.0.0.1"; /*ip which cannot connect, own ip: 127.0.0.1 */
 
     /* Create a socket and set it up to accept connections. */
     sock = makeSocket(PORT);
@@ -115,48 +116,49 @@ int main(int argc, char *argv[]) {
 	/* Block until input arrives on one or more active sockets
 	   FD_SETSIZE is a constant with value = 1024 */
 	readFdSet = activeFdSet;
-	if(select(FD_SETSIZE, &readFdSet, NULL, NULL, NULL) < 0) {
-	    perror("Select failed\n");
-	    exit(EXIT_FAILURE);
-	}
-	/* Service all the sockets with input pending. */
-	for(i = 0; i < FD_SETSIZE; ++i)
-	    if(FD_ISSET(i, &readFdSet)) {
-		if(i == sock) {
-		    /* Connection request on original socket. */
-		    size = sizeof(struct sockaddr_in);
+    if(select(FD_SETSIZE, &readFdSet, NULL, NULL, NULL) < 0) {
+        perror("Select failed\n");
+        exit(EXIT_FAILURE);
+    }
+    /* Service all the sockets with input pending. */
+    for(i = 0; i < FD_SETSIZE; ++i)
+        if(FD_ISSET(i, &readFdSet)) {
+            if(i == sock) {
+                /* Connection request on original socket. */
+                size = sizeof(struct sockaddr_in);
 
-		    /* Accept the connection request from a client. */
-		    clientSocket = accept(sock, (struct sockaddr *)&clientName, (socklen_t *)&size);
-		    if(clientSocket < 0) {
-			perror("Could not accept connection\n");
-			exit(EXIT_FAILURE);
-		    }
+                /* Accept the connection request from a client. */
+                clientSocket = accept(sock, (struct sockaddr *)&clientName, (socklen_t *)&size);
+                if(clientSocket < 0) {
+                    perror("Could not accept connection\n");
+                    exit(EXIT_FAILURE);
+                }
 
-		    /* Compare connected socket ip with banned ip
-		     * to know if we should reject or not. */
-		    if(strcmp(inet_ntoa(clientName.sin_addr), bannedip) == 0){
-			printf("Server: client %s rejected\n", inet_ntoa(clientName.sin_addr));
-			writeMessage(clientSocket, "Server: You are banned\0");
-			sleep(1);
-			close(clientSocket);
-			break;
-		    }
+                /* Compare connected socket ip with banned ip
+                 * to know if we should reject or not. */
+                if(strcmp(inet_ntoa(clientName.sin_addr), bannedip) == 0){
+                    printf("Server: client %s rejected\n", inet_ntoa(clientName.sin_addr));
+                    writeMessage(clientSocket, "Server: You are banned\0");
+                    sleep(1);
+                    close(clientSocket);
+                    break;
+                }
 
-		    printf("Server: Connect from client %s, port %d\n",
-			    inet_ntoa(clientName.sin_addr),
-			    ntohs(clientName.sin_port));
-		    FD_SET(clientSocket, &activeFdSet);
+                printf("Server: Connect from client %s, port %d\n",
+                        inet_ntoa(clientName.sin_addr),
+                        ntohs(clientName.sin_port));
+                FD_SET(clientSocket, &activeFdSet);
 
-		    /* Tell connected socket that we hear it. */
-		    writeMessage(clientSocket, "Server: I hear you, dude...\0");
+                /* Tell connected socket that we hear it. */
+                writeMessage(clientSocket, "Server: I hear you, dude...\0");
 
-		    /* Loop all active sockets exept own and write to them. */
-		    for(int j = 0; j < FD_SETSIZE; j++){
-			if(FD_ISSET(j, &activeFdSet)){
-			    if(j != sock && j != clientSocket){
-				snprintf(message, MAXMSG, "Server: Client %s connected", inet_ntoa(clientName.sin_addr));
-				writeMessage(j, message);
+                /* Loop all active sockets exept own and write to them. */
+                for(int j = 0; j < FD_SETSIZE; j++){
+                    if(FD_ISSET(j, &activeFdSet)){
+                        if(j != sock && j != clientSocket){
+                            snprintf(message, MAXMSG, "Server: Client %s connected", 
+                                    inet_ntoa(clientName.sin_addr));
+                            writeMessage(j, message);
 			    }
 			}
 		    }
