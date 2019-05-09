@@ -1,3 +1,0 @@
-/home/felix/Documents/DVA218/lab3b/CMakeFiles/rebuild_cache.dir
-/home/felix/Documents/DVA218/lab3b/CMakeFiles/lab3.dir
-/home/felix/Documents/DVA218/lab3b/CMakeFiles/edit_cache.dir
