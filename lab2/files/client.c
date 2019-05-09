@@ -2,6 +2,8 @@
  * Trying out socket communication between processes using the Internet protocol family.
  * Usage: client [host name], that is, if a server is running on 'lab1-6.idt.mdh.se'
  * then type 'client lab1-6.idt.mdh.se' and follow the on-screen instructions.
+ * Authors: Felix Sjöqvist and Olle Olofsson
+ * 2019-05-02
  */
 
 #include <stdio.h>
@@ -33,8 +35,8 @@ void initSocketAddress(struct sockaddr_in *name, char *hostName, unsigned short 
     /* Get info about host. */
     hostInfo = gethostbyname(hostName);
     if(hostInfo == NULL) {
-	fprintf(stderr, "initSocketAddress - Unknown host %s\n",hostName);
-	exit(EXIT_FAILURE);
+        fprintf(stderr, "initSocketAddress - Unknown host %s\n",hostName);
+        exit(EXIT_FAILURE);
     }
     /* Fill in the host name into the sockaddr_in struct. */
     name->sin_addr = *(struct in_addr *)hostInfo->h_addr;
@@ -48,30 +50,26 @@ void writeMessage(int fileDescriptor, char *message) {
 
     nOfBytes = write(fileDescriptor, message, strlen(message) + 1);
     if(nOfBytes < 0) {
-	perror("writeMessage - Could not write data\n");
-	exit(EXIT_FAILURE);
+        perror("writeMessage - Could not write data\n");
+        exit(EXIT_FAILURE);
     }
 }
-
+/* thred that continously reads the socket and prints out whatever it contains*/
 void* readMessage(int* fileDescriptor) {
     char buffer[MAXMSG];
     int nOfBytes;
     while(1){
-	nOfBytes = read(*fileDescriptor, buffer, MAXMSG);
-	if(nOfBytes < 0) {
-	    perror("Could not read data from server\n");
-	    threadStatus = 1;
-	    return NULL;
-	}
-	else if(nOfBytes == 0){
-	    perror("Could not read server response\n");
-	    threadStatus = 1;
-	    return NULL;
-	}
-	else{
-	    if(nOfBytes > 0)
-		printf(">%s\n",  buffer);
-	}
+        nOfBytes = read(*fileDescriptor, buffer, sizeof(buffer) - 1);
+        if(nOfBytes < 0) {
+            perror("Could not read data from server\n");
+            threadStatus = 1;
+            return NULL;
+        }
+        else if(nOfBytes == 0){
+            // DO NOTHING   
+        }
+        else
+            printf(">%s\n",  buffer);
     }
 }
 
@@ -86,25 +84,25 @@ int main(int argc, char *argv[]) {
 
     /* Check arguments */
     if(argv[1] == NULL) {
-	perror("Usage: client [host name]\n");
-	exit(EXIT_FAILURE);
+        perror("Usage: client [host name]\n");
+        exit(EXIT_FAILURE);
     }
     else {
-	strncpy(hostName, argv[1], hostNameLength);
-	hostName[hostNameLength - 1] = '\0';
+        strncpy(hostName, argv[1], hostNameLength);
+        hostName[hostNameLength - 1] = '\0';
     }
     /* Create the socket */
     sock = socket(PF_INET, SOCK_STREAM, 0);
     if(sock < 0) {
-	perror("Could not create a socket\n");
-	exit(EXIT_FAILURE);
+        perror("Could not create a socket\n");
+        exit(EXIT_FAILURE);
     }
     /* Initialize the socket address */
     initSocketAddress(&serverName, hostName, PORT);
     /* Connect to the server */
     if(connect(sock, (struct sockaddr *)&serverName, sizeof(serverName)) < 0) {
-	perror("Could not connect to server\n");
-	exit(EXIT_FAILURE);
+        perror("Could not connect to server\n");
+        exit(EXIT_FAILURE);
     }
 
     /* Send data to the server */
@@ -114,23 +112,23 @@ int main(int argc, char *argv[]) {
 
     /*create thread which continuosly reads incomming messages*/
     if((err = pthread_create(&pid, NULL, (void*(*)(void*))&readMessage, &sock) != 0)){
-	printf("thread error: %s\n", strerror(errno));
-	exit(EXIT_FAILURE);
+        printf("thread error: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
     }
     while(1) {
-	if(threadStatus == 1){
-	    return 0;
-	}
-	//printf("\n>");
-	fgets(messageString, messageLength, stdin);
-	messageString[messageLength - 1] = '\0';
-	if(strncmp(messageString,"quit\n",messageLength) != 0){
-	    writeMessage(sock, messageString);
-	}
-	else {
-	    close(sock);
-	    exit(EXIT_SUCCESS);
-	}
+        if(threadStatus == 1){
+            return 0;
+        }
+        //printf("\n>");
+        fgets(messageString, messageLength, stdin);
+        messageString[messageLength - 1] = '\0';
+        if(strncmp(messageString,"quit\n",messageLength) != 0){
+            writeMessage(sock, messageString);
+        }
+        else {
+            close(sock);
+            exit(EXIT_SUCCESS);
+        }
     }
 }
 
