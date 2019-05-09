@@ -7,27 +7,26 @@
 
 \title{Lab 2 report}
 \author{Felix Sjöqvist and Olle Olofsson}
-\date{April 28}
+\date{May 2}
 \begin{document}
 %\twocolumn %sets double columns
 \maketitle
 \section{Overview}
 %give an overview of the the client-server program
-This program includes a server and one or more clients. The server process is letting one or more clients connect to it through socket programming. When a connection between the server and client is established, they can send data to eachother e.g., the client process can take user input and send it to the server which will print it out on the screen. Since multiple clients can be connected to the server at the same time, when a new client is connected, the server broadcasts a message to all other connected clients, informing them about the new client.
+This program includes a server and one or more clients. The server process is letting one or more clients connect to it through socket programming. When a connection between the server and client is established, they can send data to eachother through the network e.g., the client process can take user input and send it to the server which will print it out on the screen. Since multiple clients can be connected to the server at the same time, when a new client is connected, the server broadcasts a message to all other connected clients, informing them about the new client. The server also has the ability to ban an IP-address, making that specific client unable to connect.
 
 %A server which listens for and let multiple clients connect to recieve and send data from and to the server. The server and client connects through sockets using the same port.
 
 %describe how it works (at the high level, textual)
 
 \section{How it works}
-\textbf{The server} creates a socket and assigns it a name and an address. Then the socket gets put in a state where it listens for incomming connections. When a client want to connect the server notice that there is some data/input on its socket accepts the request. A new socket is created, different from the original socket, which then is used for communicating with the client. At this point the server can notice the client's IP-address and decide whether it wants keep or reject the connection based on if that specific IP-address is `banned' or not, this is done by comparing the two strings with \texttt{strcmp()}. If the server chose to keep the connection, the server informs the client by sending a message `I hear you, dude\ldots' to it, else the server closes the socket and stops the connection. The server has two sets of file descriptors/sockets, a read-set and a active-set. The active-set contains the file descriptors of all active sockets i.e., the server socket and the client sockets produced when a client is accepted. Each time a client successfully connects, the sever is broadcasting out to all the other clients that a new client has connected. This is done by looping through all sockets in the active-set (exept the sever socket) and writing a message to that socket. % chktex 36
+\textbf{The server} creates a socket and assigns it a name and an address. The socket created gets put in a state where it listens for incomming connections. When a client want to connect, the server notices that there is some data/input on its socket accepts the request. Since the server is not expecting any messages on this socket, it knows that if there is data on it, it is a client trying to connect. From the \texttt{accept()} function, a new socket is created, different from the original socket, which then is used for communicating with the client. At this point the server can notice the client's IP-address and decide whether it wants keep or reject the connection, based on if that specific IP-address is `banned' or not. This is done by comparing the two strings with \texttt{strcmp()}. If the server chose to keep the connection, the server informs the client by sending a message `I hear you, dude\ldots' which gets routed to \texttt{stdout} by the recieving client, else the server send a message saying `You are banned' to the client, closes the socket which stops the connection. The server has two sets of file descriptors/sockets, a read-set and a active-set. The active-set contains the file descriptors of all active sockets i.e., the server socket and the client sockets produced when a client is accepted. Each time a client successfully connects, the sever is broadcasting out to all the other clients that a new client has connected. This is done by looping through all sockets in the active-set (exept the server socket) and writing a message to that socket. % chktex 36
 
-\textbf{The client} creates a socket and initializes its address depending on the hostname-agrument the user put in and the port number. It then tries to connect to the the address given which in this case is the server. If the server accepts its connection, it creates a thread which is continously listening for input on its socket i.e., for incomming messages. The main thread waits for input from the user which it will then send on the socket connected to the server. If the user inputs `quit' the client closes the socket and terminates.
-
-\onecolumn
+\textbf{The client} creates a socket and initializes its address depending on the hostname-agrument the user put in and the port number. It then tries to connect to the the address given which in this case is the server. If the server accepts its connection, it creates a thread which is continously listening for input on its socket. When there is data te read, it is read and printed out on the screen. The main thread waits for input from the user which it will then send via the socket connected to the server. If the user inputs `quit' the client closes the socket and terminates.
+\\
 \section{Program outputs}
 \begin{itemize}
-    \item Server's output when two clients connect
+    \item Server's output when two clients connect.
     \begin{verbatim}
     [waiting for connections...]
     Server: Connect from client 127.0.0.1, port 57220
@@ -36,28 +35,28 @@ This program includes a server and one or more clients. The server process is le
     Server: Connect from client 127.0.0.1, port 57222
     >Incoming message: hej2
     \end{verbatim}
-\item The first client's output when first connecting to the server and a second client connects
+\item The first client's output when first connecting to the server and a second client connects. The server sends a message `I hear you, dude\ldots' to the client 
     \begin{verbatim}
     Type 'quit' to nuke this program.
     >Server: I hear you, dude...
     >Server: Client 127.0.0.1 connected
     \end{verbatim}
 
-\item The second client's output when connecting to the server
+    \item The second client's output when connecting to the server
     \begin{verbatim}
     Type something and press [RETURN] to send it to the server.
     Type 'quit' to nuke this program.
     >Server: I hear you, dude...
     \end{verbatim}
 
-\item Output of a client whos name/IP-address is banned in the server.\\(The program lost connection and terminated after the last line)
+    \item Output of a client whos name/IP-address is banned in the server.\\(The program lost connection and terminated after the last line)
     \begin{verbatim}
     Type something and press [RETURN] to send it to the server.
     Type 'quit' to nuke this program.
     >Server: You are banned
     \end{verbatim}
 
-\item The server's output from when the banned client tries to connect.
+    \item The server's output from when the banned client tries to connect.
     \begin{verbatim}
     [waiting for connections...]
     Server: client 127.0.0.1 rejected

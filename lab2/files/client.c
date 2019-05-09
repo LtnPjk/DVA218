@@ -59,11 +59,14 @@ void* readMessage(int* fileDescriptor) {
     char buffer[MAXMSG];
     int nOfBytes;
     while(1){
-        nOfBytes = read(*fileDescriptor, buffer, MAXMSG);
+        nOfBytes = read(*fileDescriptor, buffer, sizeof(buffer) - 1);
         if(nOfBytes < 0) {
             perror("Could not read data from server\n");
             threadStatus = 1;
             return NULL;
+        }
+        else if(nOfBytes == 0){
+            // DO NOTHING   
         }
         else
             printf(">%s\n",  buffer);
