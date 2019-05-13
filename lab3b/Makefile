@@ -1,10 +1,14 @@
-CC=gcc
-CFLAGS=-I.
-DEPS = 
-OBJ = lab3.o
+CC = gcc
+CFLAGS = -Wall -pthread
+PROGRAMS = client server
 
-%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+ALL: ${PROGRAMS}
 
-lab3: $(OBJ) 
-	$(CC) -o $@ $^ $(CFLAGS)
+client: client.c
+	${CC} ${CFLAGS} -o client client.c
+
+server: server.c
+	${CC} ${CFLAGS} -o server server.c
+
+clean:
+	rm -f ${PROGRAMS}

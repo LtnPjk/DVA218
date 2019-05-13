@@ -1,5 +1,5 @@
 # Fdb version 3
-["pdflatex"] 1556834297 "report.tex" "report.pdf" "report" 1556834297
+["pdflatex"] 1557569780 "report.tex" "report.pdf" "report" 1557569781
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1550406775 3332 103109f5612ad95229751940c61aada0 ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmbx10.tfm" 1550406775 1328 c834bbb027764024c09d3d2bf908b5f0 ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1550406775 1324 c910af8c371558dc20f2d7822f66fe64 ""
@@ -44,10 +44,10 @@
   "/usr/share/texmf-dist/tex/latex/tools/multicol.sty" 1550406775 30849 03c22687ffd5fa0f72f2a417c6cf4ce1 ""
   "/usr/share/texmf-dist/tex/latex/tools/xspace.sty" 1550406775 4542 5251001fb2c96205905dbac86c51c5ab ""
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1550406775 33301 a3134070eacafb10b1f371612ce2650d ""
-  "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1556785916 3233842 1a92d1d21a91d82fa70913e968179e54 ""
-  "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1556785904 7919195 7c564a02f89ffdf5779bf97bc9f1e2b8 ""
-  "report.aux" 1556834297 301 708b242d923c73dbc7d885afed6df619 ""
-  "report.tex" 1556834297 5338 1544bde684056df8fc5b51b033512893 ""
+  "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1556544274 3106252 d5255ed7fd6ec6ea7699581e9a54cb46 ""
+  "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1556544273 7919196 990ca83ea310cbbfeeea4ec615eb2a33 ""
+  "report.aux" 1557569780 301 708b242d923c73dbc7d885afed6df619 ""
+  "report.tex" 1557569780 5338 1544bde684056df8fc5b51b033512893 ""
   (generated)
   "report.aux"
   "report.log"
