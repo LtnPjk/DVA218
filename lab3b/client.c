@@ -20,11 +20,17 @@
 #define PORT 5555
 #define message 1024
 #define MAXLINE 1024
+#define WIN_SIZE 5
 
 #define START 0
 #define R_WAIT 1
 #define W_WAIT 2
 #define DONE 3
+
+#define SYN 1
+#define FIN 2
+#define RST 3
+
 
 typedef struct hd_struct {
     int flags;
@@ -37,21 +43,99 @@ typedef struct hd_struct {
     int id;
 } hd;
 
-hd ok;
+hd recvDataGram;
 int sockfd;
+void logic_loop();
+char buffer[MAXLINE];
+char *hello = "Hello from server";
+struct sockaddr_in servaddr, cliaddr;
+int len, n;
+int seqx = 0;
+int seqy = 0;
+// returns checksum of input bit-string
+uint16_t Fletcher16( uint8_t *data, int count){
+    uint16_t sum1 = 0;
+    uint16_t sum2 = 0;
+    int index;
+
+    for(index = 0; index < count; ++index ){
+        sum1 = (sum1 + data[index]) % 255;
+        sum2 = (sum2 + sum1) % 255;
+    }
+    return (sum2 << 8 ) | sum1;
+
+}
+
+void writeSock(hd *dg){
+    len = sizeof(cliaddr);
+    // calc checksum
+    dg->crc = Fletcher16(dg->data, dg->length);
+    //incr seq
+    seqx++;
+    dg->seq = seqx;
+    // send data
+    if(sendto(sockfd, dg, sizeof(hd),
+            MSG_CONFIRM, (const struct sockaddr *) &servaddr,
+            sizeof(servaddr)) == -1){
+        printf("failed to send - %s\n", strerror(errno));
+    }
+
+}
+
+// returns number of successfull bytes read, or -1 if recvfrom error, or -2 if checksum err
+int readSock(hd *recvDataGram){
+    n = recvfrom(sockfd, recvDataGram, MAXLINE, MSG_WAITALL,
+            (struct sockaddr *) &cliaddr, &len);
+    printf("seqx = %d\nseqy = %d\n", seqx, seqy);
+    seqy++;
+    if(n == -1)
+        return -1;
+    // do checksum-test
+    /* uint16_t check = Fletcher16(recvDataGram->data, recvDataGram->length); */
+    /* if(check == recvDataGram->crc){ */
+    /*     return strlen(recvDataGram->data); */
+    /* } */
+    else
+        return -3;
+}
 
 int TWH_loop(){
     int state = START;
+    int sock;
+    hd hdtemp;
+    memset(&hdtemp, 0, sizeof(hdtemp));
     while(1){
         switch(state){
             case START:
+                printf("case: START\n");
                 /* send SYN=x to server */
+                hdtemp.flags = SYN;
+                writeSock(&hdtemp);
+                state = R_WAIT;
                 break;
             case R_WAIT:
                 /* if we recieve SYN=y and ACK=x+1, send ACK=y+1 and WIN_SIZE to server */
                 /* if timeout -> resend the SYN=x */
+                printf("case: R_WAIT\n");
+                if((sock = readSock(&hdtemp)) == -1){
+                    perror("could not read socket\n");
+                }
+                else if(sock == -2){
+                    printf("checksum error\n");
+                }
+                else{
+                    if(hdtemp.flags == SYN && hdtemp.ACK == seqx + 1){
+                        //seqy = hdtemp.seq;
+                        hdtemp.ACK = seqy + 1;
+                        hdtemp.windowsize = WIN_SIZE;
+                        writeSock(&hdtemp);
+                        state = W_WAIT;
+                    }
+                }
                 break;
             case W_WAIT:
+                printf("case: W_WAIT\n");
+                sleep(1);
                 /* if recieve WIN_SIZE and id -> send ACK=x+2 */
                 /* if timeout -> resend ACK=y+1 and WIN_SIZE */
                 break;
@@ -79,23 +163,22 @@ int main(int argc, char *argv[]) {
 #define SW 1
 #define TD 2
 
-    ok.flags = 0;
-    ok.ACK = 0;
-    ok.seq = 0;
-    ok.windowsize = 4;
-    ok.crc = 0;
-    ok.data = "";
+    recvDataGram.flags = 0;
+    recvDataGram.ACK = 0;
+    recvDataGram.seq = 0;
+    recvDataGram.windowsize = 4;
+    recvDataGram.crc = 0;
+    recvDataGram.data = "";
     char buffer[MAXLINE]; 
     char *hello = "Hello from client"; 
-    struct sockaddr_in     servaddr; 
-    int state = 0;
+    int state = TWH;
 
     // Creating socket file descriptor 
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
         perror("socket creation failed"); 
         exit(EXIT_FAILURE); 
     } 
-
+    printf(" ----CLIENT----\n");
     memset(&servaddr, 0, sizeof(servaddr)); 
 
     // Filling server information 

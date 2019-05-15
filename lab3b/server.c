@@ -18,6 +18,15 @@
 #define PORT     5555
 #define MAXLINE 1024
 
+#define START 0
+#define R_WAIT 1
+#define R_WAIT2 2
+#define DONE 3
+
+#define SYN 1
+#define FIN 2
+#define RST 3
+
 typedef struct hd_struct {
     int flags;
     int ACK;
@@ -35,16 +44,15 @@ char buffer[MAXLINE];
 char *hello = "Hello from server";
 struct sockaddr_in servaddr, cliaddr;
 int len, n;
-
+int seqy = 0;
+int seqx = 0;
 // Driver code
-int main() {
-
+int main(){
     // Creating socket file descriptor
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
         perror("socket creation failed");
         exit(EXIT_FAILURE);
     }
-
     memset(&servaddr, 0, sizeof(servaddr));
     memset(&cliaddr, 0, sizeof(cliaddr));
 
@@ -56,7 +64,7 @@ int main() {
 
     // Bind the socket with the server address
     if ( bind(sockfd, (const struct sockaddr *)&servaddr,
-            sizeof(servaddr)) < 0 )
+                sizeof(servaddr)) < 0 )
     {
         perror("bind failed");
         exit(EXIT_FAILURE);
@@ -72,7 +80,7 @@ int main() {
 hd *recvDataGram;
 
 // returns checksum of input bit-string
-uint16_t Fletcher16( uint8_t *data, int count){
+uint16_t Fletcher16( char *data, int count){
     uint16_t sum1 = 0;
     uint16_t sum2 = 0;
     int index;
@@ -85,28 +93,90 @@ uint16_t Fletcher16( uint8_t *data, int count){
 
 }
 
-void writeSock(hd dg){
+void writeSock(hd *dg){
     // calc checksum
-    dg.crc = Fletcher16(dg.data, dg.length);
+    dg->crc = Fletcher16(dg->data, dg->length);
+    //incr seq
+    seqy++;
+    dg->seq = seqy;
     // send data
-    sendto(sockfd, &dg, sizeof(hd),
-        MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
-            len);
+    if(sendto(sockfd, dg, sizeof(hd),
+            MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
+            sizeof(cliaddr)) == -1){
+        printf("failed to send - %s\n", strerror(errno));
+    }
+
 
 }
 
 // returns number of successfull bytes read, or -1 if recvfrom error, or -2 if checksum err
-int readSock(){
-    n = recvfrom(sockfd, recvDataGram, MAXLINE, MSG_WAITALL,
+int readSock(hd *recvDataGram){
+    len = sizeof(cliaddr);
+    n = recvfrom(sockfd, recvDataGram, sizeof(recvDataGram), MSG_WAITALL,
             (struct sockaddr *) &cliaddr, &len);
+    printf("seqx = %d\nseqy = %d\n", seqx, seqy);
+    seqx++;
     if(n == -1)
         return -1;
     // do checksum-test
-    uint16_t check = Fletcher16(recvDataGram->data, recvDataGram->length);
+    /* uint16_t check = Fletcher16(recvDataGram->data, recvDataGram->length); */
+    /* if(check == recvDataGram->crc){ */
+    /*     seqx = recvDataGram->seq; */
+    /*     return strlen(recvDataGram->data); */
+    /* } */
+    else
+        return -3;
 }
-// returns next state-machine to execute
-int TWH_loop(){
 
+int TWH_loop(){
+    int state = START;
+    int sock;
+    hd hdtemp;
+    memset(&hdtemp, 0, sizeof(hdtemp));
+    while(1){
+        switch(state){
+            case START:
+                printf("case: START\n");
+                if((sock = readSock(&hdtemp)) == -1){
+                    perror("Could not read socket\n");
+                }
+                else if(sock == -2){
+                    printf("checksum error\n");
+                }
+                else{
+                    if(hdtemp.flags == SYN){
+                        printf("yaas\n");
+                        hdtemp.seq = seqy;
+                        hdtemp.ACK = seqx + 1;
+                        hdtemp.flags = SYN;
+                        writeSock(&hdtemp);
+                        state = R_WAIT;
+                    }
+                }
+                break;
+            case R_WAIT:
+                printf("case: R_WAIT\n");
+                if((sock = readSock(&hdtemp)) == -1){
+                    perror("Could not read socket\n");
+                }
+                else if(sock == -2){
+                    printf("checksum error\n");
+                }
+                else{
+                    if(hdtemp.ACK == seqy + 1 && hdtemp.windowsize != 0){
+                        printf("send ack + win size\n");
+                    }
+                }
+
+                break;
+            case R_WAIT2:
+                break;
+            case DONE:
+                break;
+            default:
+                break;
+        }
+    }
 }
 // returns next state-machine to execute
 int SW_loop(){
@@ -119,7 +189,7 @@ int TD_loop(){
 void logic_loop(){
     while(1){
         int nextMachine = 0;
-
+        printf("----SERVER----\n");
         hd *dGram;
         /* n = recvfrom(sockfd, dGram, MAXLINE, */
         /*             MSG_WAITALL, ( struct sockaddr *) &cliaddr, */
@@ -142,7 +212,7 @@ void logic_loop(){
 
         printf("Client : %d\n", dGram->windowsize);
         sendto(sockfd, (const char *)hello, strlen(hello),
-            MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
+                MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
                 len);
         printf("Hello message sent.\n");
     }
