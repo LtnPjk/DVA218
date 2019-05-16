@@ -27,6 +27,10 @@
 #define FIN 2
 #define RST 3
 
+#define TWH 0
+#define SW 1
+#define TD 2
+
 typedef struct hd_struct {
     int flags;
     int ACK;
@@ -46,6 +50,7 @@ struct sockaddr_in servaddr, cliaddr;
 int len, n;
 int seqy = 0;
 int seqx = 0;
+int win_size;
 // Driver code
 int main(){
     // Creating socket file descriptor
@@ -73,9 +78,6 @@ int main(){
     return 0;
 }
 
-#define TWH 0
-#define SW 1
-#define TD 2
 
 hd *recvDataGram;
 
@@ -100,22 +102,21 @@ void writeSock(hd *dg){
     seqy++;
     dg->seq = seqy;
     // send data
-    if(sendto(sockfd, dg, sizeof(hd),
+    if(sendto(sockfd, dg, sizeof(*dg),
             MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
             sizeof(cliaddr)) == -1){
         printf("failed to send - %s\n", strerror(errno));
     }
-
-
+    printf("seqx = %d\nseqy = %d\n", seqx, seqy);
 }
 
 // returns number of successfull bytes read, or -1 if recvfrom error, or -2 if checksum err
 int readSock(hd *recvDataGram){
     len = sizeof(cliaddr);
-    n = recvfrom(sockfd, recvDataGram, sizeof(recvDataGram), MSG_WAITALL,
+    n = recvfrom(sockfd, recvDataGram, sizeof(*recvDataGram), MSG_WAITALL,
             (struct sockaddr *) &cliaddr, &len);
-    printf("seqx = %d\nseqy = %d\n", seqx, seqy);
-    seqx++;
+    //seqx++;
+    seqx = recvDataGram->seq;
     if(n == -1)
         return -1;
     // do checksum-test
@@ -146,7 +147,7 @@ int TWH_loop(){
                 else{
                     if(hdtemp.flags == SYN){
                         printf("yaas\n");
-                        hdtemp.seq = seqy;
+                        //hdtemp.seq = seqy;
                         hdtemp.ACK = seqx + 1;
                         hdtemp.flags = SYN;
                         writeSock(&hdtemp);
@@ -164,15 +165,34 @@ int TWH_loop(){
                 }
                 else{
                     if(hdtemp.ACK == seqy + 1 && hdtemp.windowsize != 0){
+                        win_size = hdtemp.windowsize;
+                        hdtemp.ACK = seqy + 2;
+                        writeSock(&hdtemp);
+                        state = R_WAIT2;
                         printf("send ack + win size\n");
                     }
+                    printf("test - %d\n", hdtemp.ACK);
+                    printf("test - %d\n", hdtemp.windowsize);
                 }
 
                 break;
             case R_WAIT2:
+                printf("case: R_WAIT2\n");
+                if((sock = readSock(&hdtemp)) == -1){
+                    perror("Could not read socket\n");
+                }
+                else if(sock == -2){
+                    printf("checksum error\n");
+                }
+                else{
+                    if(hdtemp.ACK == seqy + 2){
+                        state = DONE;
+                    }
+                }
                 break;
             case DONE:
-                break;
+                printf("Three Way Handshake Done\n");
+                return SW;
             default:
                 break;
         }
@@ -180,15 +200,15 @@ int TWH_loop(){
 }
 // returns next state-machine to execute
 int SW_loop(){
-
+printf("in SW\n");
 }
 // returns next state-machine to execute
 int TD_loop(){
 
 }
 void logic_loop(){
-    while(1){
         int nextMachine = 0;
+    while(1){
         printf("----SERVER----\n");
         hd *dGram;
         /* n = recvfrom(sockfd, dGram, MAXLINE, */
@@ -199,6 +219,7 @@ void logic_loop(){
         switch (nextMachine){
             case TWH:
                 nextMachine = TWH_loop();
+                printf("hejj\n");
                 break;
             case SW:
                 nextMachine = SW_loop();
@@ -207,13 +228,15 @@ void logic_loop(){
                 nextMachine = TD_loop();
                 break;
             default:
+                printf("DEFAULT\n");
+                sleep(2);
                 break;
         }
 
-        printf("Client : %d\n", dGram->windowsize);
-        sendto(sockfd, (const char *)hello, strlen(hello),
-                MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
-                len);
-        printf("Hello message sent.\n");
+        /* printf("Client : %d\n", dGram->windowsize); */
+        /* sendto(sockfd, (const char *)hello, strlen(hello), */
+        /*         MSG_CONFIRM, (const struct sockaddr *) &cliaddr, */
+        /*         len); */
+        /* printf("Hello message sent.\n"); */
     }
 }

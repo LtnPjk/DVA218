@@ -31,6 +31,9 @@
 #define FIN 2
 #define RST 3
 
+#define TWH 0
+#define SW 1
+#define TD 2
 
 typedef struct hd_struct {
     int flags;
@@ -74,20 +77,20 @@ void writeSock(hd *dg){
     seqx++;
     dg->seq = seqx;
     // send data
-    if(sendto(sockfd, dg, sizeof(hd),
+    if(sendto(sockfd, dg, sizeof(*dg),
             MSG_CONFIRM, (const struct sockaddr *) &servaddr,
             sizeof(servaddr)) == -1){
         printf("failed to send - %s\n", strerror(errno));
     }
-
+    printf("seqx = %d\nseqy = %d\n", seqx, seqy);
 }
 
 // returns number of successfull bytes read, or -1 if recvfrom error, or -2 if checksum err
 int readSock(hd *recvDataGram){
-    n = recvfrom(sockfd, recvDataGram, MAXLINE, MSG_WAITALL,
+    n = recvfrom(sockfd, recvDataGram, sizeof(*recvDataGram), MSG_WAITALL,
             (struct sockaddr *) &cliaddr, &len);
-    printf("seqx = %d\nseqy = %d\n", seqx, seqy);
-    seqy++;
+    //seqy++;
+    seqy = recvDataGram->seq;
     if(n == -1)
         return -1;
     // do checksum-test
@@ -128,6 +131,7 @@ int TWH_loop(){
                         //seqy = hdtemp.seq;
                         hdtemp.ACK = seqy + 1;
                         hdtemp.windowsize = WIN_SIZE;
+                        printf("win size - %d\n", hdtemp.windowsize);
                         writeSock(&hdtemp);
                         state = W_WAIT;
                     }
@@ -135,13 +139,27 @@ int TWH_loop(){
                 break;
             case W_WAIT:
                 printf("case: W_WAIT\n");
+                if((sock = readSock(&hdtemp)) == -1){
+                    perror("could not read socket\n");
+                }
+                else if(sock == -2){
+                    printf("checksum error\n");
+                }
+                else{
+                    if(hdtemp.windowsize == WIN_SIZE){
+                        hdtemp.ACK = seqy + 2;
+                        writeSock(&hdtemp);
+                        state = DONE;
+                    }
+                }
                 sleep(1);
                 /* if recieve WIN_SIZE and id -> send ACK=x+2 */
                 /* if timeout -> resend ACK=y+1 and WIN_SIZE */
                 break;
             case DONE:
+                printf("Three Way Handshake Done\n");
                 /* if we entered the DONE state we want to go to the SW state */
-                return 1;
+                return SW;
 
             default:
                 break;
@@ -151,7 +169,7 @@ int TWH_loop(){
 }
 
 int SW_loop(){
-
+printf("in SW\n");
 }
 
 int TD_loop(){
