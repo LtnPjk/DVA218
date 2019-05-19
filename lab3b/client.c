@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
 #define TWH 0
 #define SW 1
 #define TD 2
-
+printf("ok\n");
     recvDataGram.flags = 0;
     recvDataGram.ACK = 0;
     recvDataGram.seq = 0;

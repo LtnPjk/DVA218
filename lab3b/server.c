@@ -129,10 +129,14 @@ int readSock(hd *recvDataGram){
         return -3;
 }
 
+int makePkt(){
+    
+}
 int TWH_loop(){
     int state = START;
     int sock;
     hd hdtemp;
+    printf("hehe\n");
     memset(&hdtemp, 0, sizeof(hdtemp));
     while(1){
         switch(state){
@@ -145,7 +149,7 @@ int TWH_loop(){
                     printf("checksum error\n");
                 }
                 else{
-                    if(hdtemp.flags == SYN){
+                    if(hdtemp.flags == SYN && hdtemp.seq == 1){
                         printf("yaas\n");
                         //hdtemp.seq = seqy;
                         hdtemp.ACK = seqx + 1;
@@ -166,7 +170,7 @@ int TWH_loop(){
                 else{
                     if(hdtemp.ACK == seqy + 1 && hdtemp.windowsize != 0){
                         win_size = hdtemp.windowsize;
-                        hdtemp.ACK = seqy + 2;
+                        hdtemp.ACK = seqx + 1;
                         writeSock(&hdtemp);
                         state = R_WAIT2;
                         printf("send ack + win size\n");
