@@ -69,25 +69,34 @@ uint16_t Fletcher16( char *data, int count){
 
 }
 
+void printPacket(hd dg){
+    printf("flags: %d --- ", dg.flags);
+    printf("ACK: %d --- ", dg.ACK);
+    printf("seq: %d --- ", dg.seq);
+    printf("winsize: %d --- ", dg.windowsize);
+    printf("crc: %u\n", (unsigned int)dg.crc);
+    return;
+}
+
 void writeSock(hd *dg){
     // calc checksum
-    dg->crc = Fletcher16(dg->data, dg->length);
+    //dg->crc = Fletcher16(dg->data, dg->length);
     //incr seq
     seqy++;
     dg->seq = seqy;
     // send data
-    if(sendto(sockfd, dg, sizeof(*dg),
+    if(sendto(sockfd, dg, sizeof(hd),
                 MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
                 sizeof(cliaddr)) == -1){
         printf("failed to send - %s\n", strerror(errno));
     }
 }
 
+struct pollfd fd;
+
 // returns -1 if error, -2 if checksum error, -3 if timeout
 int readSock(hd *recvDataGram, int timeout){
-    struct pollfd fd;
     int ret;
-
     fd.fd = sockfd; // socket file descriptor
     fd.events = POLLIN;
     ret = poll(&fd, 1, timeout); // timeout = time in milliseconds
@@ -100,7 +109,7 @@ int readSock(hd *recvDataGram, int timeout){
             return -3;
         default:
             len = sizeof(cliaddr);
-            n = recvfrom(sockfd, recvDataGram, sizeof(*recvDataGram), MSG_WAITALL,
+            n = recvfrom(sockfd, recvDataGram, sizeof(hd), MSG_WAITALL,
                     (struct sockaddr *) &cliaddr, &len);
             seqx = recvDataGram->seq;
             if(n == -1)
@@ -146,10 +155,24 @@ int TWH_loop(){
                         hdtemp.ACK = seqx + 1;
                         hdtemp.flags = SYN;
                         writeSock(&hdtemp);
+                        //printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc);
+                        printPacket(hdtemp);
                         state = R_WAIT;
                     }
+                    else{
+                        int ret;
+                        while(1){
+                            ret = poll(&fd, 1, -1); 
+                            if(ret == -1)
+                                printf("error: %s\n", strerror(errno));
+                            else{
+                                printf("packet found\n");
+                                state = START;
+                                break;
+                            }
+                        }
+                    }
                 }
-                printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc);
                 break;
                 // state waiting for ACK+WIN_SIZE
             case R_WAIT:
@@ -161,6 +184,18 @@ int TWH_loop(){
                 else if(sock == -2){
                     printf("checksum error\n");
                     seqy = 0;
+                    int ret;
+                    while(1){
+                        ret = poll(&fd, 1, -1); 
+                        if(ret == -1)
+                            printf("error: %s\n", strerror(errno));
+                        else{
+                            printf("packet found\n");
+                            state = R_WAIT;
+                            break;
+                        }
+
+                    }
                     break;
                 }
                 // if error is timeout, resend previous packet and stay on this state
@@ -171,7 +206,8 @@ int TWH_loop(){
                     hdtemp.flags = SYN;
                     writeSock(&hdtemp);
                     state = R_WAIT;
-                    printf("Resend-seqx = %d\nResend-seqy = %d\n", seqx, seqy);
+                    /* printf("Resend-seqx = %d\nResend-seqy = %d\n", seqx, seqy); */
+                    printPacket(hdtemp);
                     break;
                 }
                 // if no errors, send ACK+WIN_SIZE and go to state R_WAIT2
@@ -182,10 +218,24 @@ int TWH_loop(){
                         hdtemp.windowsize = win_size;
                         hdtemp.ACK = seqx + 1;
                         writeSock(&hdtemp);
+                        /* printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc); */
+                        printPacket(hdtemp);
                         state = R_WAIT2;
                     }
+                    else{
+                        int ret;
+                        while(1){
+                            ret = poll(&fd, 1, -1); 
+                            if(ret == -1)
+                                printf("error: %s\n", strerror(errno));
+                            else{
+                                printf("packet found\n");
+                                state = R_WAIT;
+                                break;
+                            }
+                        }
+                    }
                 }
-                printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc);
 
                 break;
                 // state waiting for final ACK from the client
@@ -207,7 +257,8 @@ int TWH_loop(){
                     hdtemp.ACK = seqx + 1;
                     writeSock(&hdtemp);
                     state = R_WAIT2;
-                    printf("Resend-seqx = %d\nResend-seqy = %d\n", seqx, seqy);
+                    /* printf("Resend-seqx = %d\nResend-seqy = %d\n", seqx, seqy); */
+                    printPacket(hdtemp);
                     break;
                 }
                 // if no erros and we recieve right ACK, go to state DONE
@@ -215,13 +266,28 @@ int TWH_loop(){
                     if(hdtemp.ACK == seqy + 1){
                         state = DONE;
                     }
+                    else{
+                        int ret;
+                        while(1){
+                            ret = poll(&fd, 1, -1); 
+                            if(ret == -1)
+                                printf("error: %s\n", strerror(errno));
+                            else{
+                                printf("packet found\n");
+                                state = R_WAIT2;
+                                break;
+                            }
+                        }
+                    }
                 }
-                printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc);
+                /* printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc); */
+                printPacket(hdtemp);
                 break;
                 // state DONE, there should now be a connection
             case DONE:
                 printf(">Three Way Handshake Done\n");
-                printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc);
+                /* printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc); */
+                printPacket(hdtemp);
                 return SW;
             default:
                 break;
@@ -276,6 +342,7 @@ int main(){
         perror("socket creation failed");
         exit(EXIT_FAILURE);
     }
+    printf(" ----SERVER----\n");
     memset(&servaddr, 0, sizeof(servaddr));
     memset(&cliaddr, 0, sizeof(cliaddr));
 
