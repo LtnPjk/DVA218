@@ -55,18 +55,18 @@ int win_size;
 
 //hd *recvDataGram;
 
-// returns checksum of input bit-string
-uint16_t Fletcher16( char *data, int count){
-    uint16_t sum1 = 0;
-    uint16_t sum2 = 0;
-    int index;
-
-    for(index = 0; index < count; ++index ){
-        sum1 = (sum1 + data[index]) % 255;
-        sum2 = (sum2 + sum1) % 255;
+uint16_t checksum16(uint16_t *data, size_t len){
+    uint16_t checksum = 0;
+    size_t evn_len = len - len%2; // round down to even number of words
+    int i;
+    for(i = 0; i < evn_len; i += 2){
+        uint16_t val = (data[i] + data[i+1]) % 65536;
+        checksum += val;
     }
-    return (sum2 << 8 ) | sum1;
-
+    if(i < len) { // add last byte if data was rounded earlier
+        checksum += data[i] % 65536;
+    }
+    return checksum;
 }
 
 void printPacket(hd dg){
@@ -83,7 +83,6 @@ void writeSock(hd *dg){
     //dg->crc = Fletcher16(dg->data, dg->length);
     //incr seq
     seqy++;
-    dg->seq = seqy;
     // send data
     if(sendto(sockfd, dg, sizeof(hd),
                 MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
@@ -115,8 +114,8 @@ int readSock(hd *recvDataGram, int timeout){
             if(n == -1)
                 return -1;
             // do checksum-test
-            uint16_t check = Fletcher16(recvDataGram->data, recvDataGram->length);
-            if(check != recvDataGram->crc){
+             uint16_t check;
+             if(check != recvDataGram->crc){
                 return -2;
             }
             else
