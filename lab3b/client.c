@@ -163,7 +163,7 @@ int TWH_loop(){
                 //printPacket(hdtemp);
                 break;
 
-            /* state waiting for SYN+ACK */
+                /* state waiting for SYN+ACK */
             case R_WAIT:
                 printf("WAITING FOR ACK+SYN\n");
 
@@ -236,7 +236,7 @@ int TWH_loop(){
                 }
                 break;
 
-            /* state waiting for ACK+WIN_SIZE */
+                /* state waiting for ACK+WIN_SIZE */
             case W_WAIT:
                 printf("WAITING FOR ACK+WIN:SIZE\n");
 
@@ -308,7 +308,7 @@ int TWH_loop(){
                 }
                 break;
 
-            /* Three way handshake done */
+                /* Three way handshake done */
             case DONE:
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
@@ -373,7 +373,7 @@ int TD_loop(){
                 //printPacket(hdtemp);
                 break;
 
-            /* state waiting for ACK+FIN */
+                /* state waiting for ACK+FIN */
             case W1:
                 printf("WAITING FOR ACK+FIN\n");
 
@@ -443,7 +443,7 @@ int TD_loop(){
                     break;
                 }
 
-            /* case waiting for either a package or timeout */
+                /* case waiting for either a package or timeout */
             case W2:
                 printf("WAITING FOR PACKAGE OR TIMEOUT\n");
 
@@ -489,7 +489,7 @@ int TD_loop(){
                     break;
                 }
 
-            /* Teardown done */
+                /* Teardown done */
             case DONE:
                 printf("Teardown Complete\n");
                 return EXIT;
@@ -541,20 +541,6 @@ int main(int argc, char *argv[]) {
                 return 0;
         }
     }
-    /* int n, len; */
-
-    /* sendto(sockfd, &ok, sizeof(hd), */
-    /*         MSG_CONFIRM, (const struct sockaddr *) &servaddr, */
-    /*         sizeof(servaddr)); */
-    /* printf("Hello message sent.\n"); */
-
-    /* n = recvfrom(sockfd, (char *)buffer, MAXLINE, */
-    /*         MSG_WAITALL, (struct sockaddr *) &servaddr, */
-    /*         &len); */
-    /* buffer[n] = '\0'; */
-    /* printf("Server : %s\n", buffer); */
-
-    /* close(sockfd); */
-    /* return 0; */
+    return 0;
 }
 

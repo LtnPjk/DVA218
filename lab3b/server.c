@@ -393,7 +393,7 @@ int TD_loop(){
                     }
                 }
 
-            /* state waiting for ACK */
+                /* state waiting for ACK */
             case W1:
                 printf("WAITING FOR ACK\n");
 
@@ -458,7 +458,7 @@ int TD_loop(){
                     }
                 }
 
-            /* Teardown done */
+                /* Teardown done */
             case DONE:
                 printf("Teardown complete\n");
                 return EXIT;
@@ -466,39 +466,7 @@ int TD_loop(){
     }
 
 }
-/* void logic_loop(){ */
-/*     int nextMachine = 0; */
-/*     while(1){ */
-/*         printf("|-SERVER|-\n"); */
-/*         hd *dGram; */
-/*         /1* n = recvfrom(sockfd, dGram, MAXLINE, *1/ */
-/*         /1*             MSG_WAITALL, ( struct sockaddr *) &cliaddr, *1/ */
-/*         /1*             &len); *1/ */
-/*         /1* buffer[n] = '\0'; *1/ */
-/*         //Determine machine */
-/*         switch (nextMachine){ */
-/*             case TWH: */
-/*                 nextMachine = TWH_loop(); */
-/*                 break; */
-/*             case SW: */
-/*                 nextMachine = SW_loop(); */
-/*                 break; */
-/*             case TD: */
-/*                 nextMachine = TD_loop(); */
-/*                 break; */
-/*             default: */
-/*                 printf("DEFAULT\n"); */
-/*                 sleep(2); */
-/*                 break; */
-/*         } */
 
-/*         /1* printf("Client : %d\n", dGram->windowsize); *1/ */
-/*         /1* sendto(sockfd, (const char *)hello, strlen(hello), *1/ */
-/*         /1*         MSG_CONFIRM, (const struct sockaddr *) &cliaddr, *1/ */
-/*         /1*         len); *1/ */
-/*         /1* printf("Hello message sent.\n"); *1/ */
-/*     } */
-/* } */
 // Driver code
 int main(){
     // Creating socket file descriptor
