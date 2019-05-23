@@ -144,6 +144,7 @@ int readSock(hd *recvDataGram, int timeout){
     }
 }
 
+/* Three way handshake loop, returning the next state in main() */
 int TWH_loop(){
     printf("---Three Way Handshake---\n");
     int state = START;
@@ -151,32 +152,30 @@ int TWH_loop(){
     memset(&hdtemp, 0, sizeof(hdtemp));
     while(1){
         switch(state){
-            // starting state, directly sending a SYN
+            /* starting state, directly sending a SYN */
             case START:
                 printf("READY TO SEND SYN\n");
-                /* send SYN=x to server */
                 memset(&hdtemp, 0, sizeof(hdtemp));
-                //hdtemp.crc = 1;
                 hdtemp.flags = SYN;
                 printf("sending SYN\n");
                 writeSock(&hdtemp);
                 state = R_WAIT;
                 //printPacket(hdtemp);
                 break;
-                // state waiting for SYN+ACK
+
+            /* state waiting for SYN+ACK */
             case R_WAIT:
-                //sleep(4);
                 printf("WAITING FOR ACK+SYN\n");
-                // read socket and check for errors
+
+                /* read socket and check for errors */
                 if((sock = readSock(&hdtemp, 1000)) == -1){
                     perror("could not read socket\n");
                     break;
                 }
-                // if checksum error, wait for resend from server
+
+                /* if checksum error, wait for resend from server */
                 else if(sock == -2){
                     printf("checksum error\n");
-                    /* if(seqx > 0) */
-                    /*     seqx--; */
                     int ret;
                     while(1){
                         ret = poll(&fd, 1, -1); 
@@ -190,10 +189,12 @@ int TWH_loop(){
                     }
                     break;
                 }
-                // if error is timeout, resend previous packet and stay on this state
+
+                /* if error is timeout, resend previous packet and stay on this state */
                 else if(sock == -3){
                     printf("TIMEOUT\n");
-                    seqx = 0;
+                    if(seqx > 0)
+                        seqx--;
                     memset(&hdtemp, 0, sizeof(hdtemp));
                     hdtemp.flags = SYN;
                     printf("resending SYN\n");
@@ -202,14 +203,13 @@ int TWH_loop(){
                     //printPacket(hdtemp);
                     break;
                 }
-                // if no erorrs, send ACK+WIN_SIZE
+
+                /* if no erorrs*/
                 else{
+                    /* right package, send ACK+WIN_SIZE*/
                     if(hdtemp.flags == SYN && hdtemp.ACK == seqx + 1){
                         printf("recieved ACK+SYN\n");
-                        //seqy = hdtemp.seq;
                         memset(&hdtemp, 0, sizeof(hdtemp));
-                        /* sleep(3); */
-                        //hdtemp.crc = 1;
                         hdtemp.ACK = seqy + 1;
                         hdtemp.windowsize = WIN_SIZE;
                         printf("sending ACK+WIN_SIZE\n");
@@ -217,6 +217,8 @@ int TWH_loop(){
                         //printPacket(hdtemp);
                         state = W_WAIT;
                     }
+
+                    /* wrong package, wait for resend*/
                     else{
                         printf("recieved wrong packet\n");
                         int ret;
@@ -233,17 +235,19 @@ int TWH_loop(){
                     }
                 }
                 break;
-                // state waiting for ACK+WIN_SIZE
+
+            /* state waiting for ACK+WIN_SIZE */
             case W_WAIT:
                 printf("WAITING FOR ACK+WIN:SIZE\n");
-                //read socket and check for errors
+
+                /* read socket and check for errors */
                 if((sock = readSock(&hdtemp, 1000)) == -1){
                     perror("could not read socket\n");
                 }
-                // if checksum error, wait for resend
+
+                /* if checksum error, wait for resend */
                 else if(sock == -2){
                     printf("checksum error, waiting for new packet\n");
-                    //seqy = 0;
                     int ret;
                     while(1){
                         ret = poll(&fd, 1, -1); 
@@ -256,12 +260,9 @@ int TWH_loop(){
                         }
                     }
                     break;
-                    /* printf("checksum error\n"); */
-                    /* if(seqx > 0) */
-                    /*     seqx--; */
-                    /* break; */
                 }
-                // if error is timeout, resend packet and stay on this state
+
+                /* if error is timeout, resend packet and stay on this state */
                 else if(sock == -3){
                     printf("TIMEOUT\n");
                     if(seqx > 0)
@@ -275,8 +276,10 @@ int TWH_loop(){
                     //printPacket(hdtemp);
                     break;
                 }
-                // if no errors, send ACK and go to state DONE
+
+                /* if no errors*/
                 else{
+                    /* right package, send ACK */
                     if(hdtemp.windowsize == WIN_SIZE && hdtemp.ACK == seqx +1){
                         printf("recieved ACK+WIN_SIZE\n");
                         memset(&hdtemp, 0, sizeof(hdtemp));
@@ -286,6 +289,8 @@ int TWH_loop(){
                         //printPacket(hdtemp);
                         state = DONE;
                     }
+
+                    /* wrong package, wait for resend */ 
                     else{
                         printf("recieved wrong packet\n");
                         int ret;
@@ -301,19 +306,16 @@ int TWH_loop(){
                         }
                     }
                 }
-                /* if recieve WIN_SIZE and id -> send ACK=x+2 */
-                /* if timeout -> resend ACK=y+1 and WIN_SIZE */
                 break;
+
+            /* Three way handshake done */
             case DONE:
                 printf(">Three Way Handshake Done\n");
-                /* if we entered the DONE state we want to go to the SW state */
-                /* printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc); */
                 //printPacket(hdtemp);
                 return TD;
 
             default:
                 break;
-
         }
     }
 }
@@ -353,18 +355,17 @@ int SW_loop(){
 
 }
 
+/* Teardown loop, returning next state-machine to execute */
 int TD_loop(){
     printf("---Teardown---\n");
     int state = START;
     int sock;
     while(1){
         switch(state){
-            // starting state, directly sending a FIN
+            /* starting state, directly sending a FIN */
             case START:
                 printf("READY TO SEND FIN\n");
-                /* send FIN=x to server */
                 memset(&hdtemp, 0, sizeof(hdtemp));
-                //hdtemp.crc = 1;
                 hdtemp.flags = FIN;
                 printf("sending FIN\n");
                 writeSock(&hdtemp);
@@ -372,12 +373,16 @@ int TD_loop(){
                 //printPacket(hdtemp);
                 break;
 
+            /* state waiting for ACK+FIN */
             case W1:
                 printf("WAITING FOR ACK+FIN\n");
+
+                /* read socket and check for errors */
                 if((sock = readSock(&hdtemp, 1000)) == -1){
                     perror("could not read socket\n");
                 }
-                // checksum error
+
+                /* checksum error, wait for resend*/
                 else if(sock == -2){
                     printf("checksum error - wait for resend\n");
                     int ret;
@@ -393,7 +398,8 @@ int TD_loop(){
                     }
                     break;
                 }
-                // timeout error
+
+                /* timeout error, resend FIN*/
                 else if(sock == -3){
                     printf("TIMEOUT\n");
                     memset(&hdtemp, 0, sizeof(hdtemp));
@@ -404,7 +410,10 @@ int TD_loop(){
                     //printPacket(hdtemp);
                     break;
                 }
+
+                /* if no errors */
                 else{
+                    /* right package, send ACK */
                     if(hdtemp.flags == FIN && hdtemp.ACK == seqx +1){
                         printf("recieved ACK+FIN\n");
                         memset(&hdtemp, 0, sizeof(hdtemp));
@@ -415,6 +424,8 @@ int TD_loop(){
                         //printPacket(hdtemp);
                         break;
                     }
+
+                    /* wrong package, wait for resend */
                     else{
                         printf("recieved wrong packet - waiting for resend\n");
                         int ret;
@@ -432,12 +443,16 @@ int TD_loop(){
                     break;
                 }
 
+            /* case waiting for either a package or timeout */
             case W2:
                 printf("WAITING FOR PACKAGE OR TIMEOUT\n");
+
+                /* read socket and check for errors */
                 if((sock = readSock(&hdtemp, 1500)) == -1){
                     perror("could not read socket\n");
                 }
-                // checksum error
+
+                /* checksum error, resend ACK */
                 else if(sock == -2){
                     printf("checksum error\n");
                     if(seqx > 0)
@@ -450,12 +465,16 @@ int TD_loop(){
                     //printPacket(hdtemp);
                     break;
                 }
-                // timeout error
+
+                /* timeout error, this means that server is done, go to state DONE */
                 else if(sock == -3){
                     printf("Timeout - DONE\n");
                     state = DONE;
                     break;
                 }
+
+                /* recieving a pcket means that the server is not done and probably in */
+                /* its waiting state */
                 else{
                     printf("recieved a packet:\n");
                     printPacket(hdtemp);
@@ -470,6 +489,7 @@ int TD_loop(){
                     break;
                 }
 
+            /* Teardown done */
             case DONE:
                 printf("Teardown Complete\n");
                 return EXIT;

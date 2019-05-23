@@ -131,9 +131,7 @@ int readSock(hd *recvDataGram, int timeout){
     }
 }
 
-int makePkt(){
-
-}
+/* Three way handshake loop, returning the next state in main() */
 int TWH_loop(){
     printf("---Three Way Handshake---\n");
     int state = START;
@@ -141,10 +139,10 @@ int TWH_loop(){
     memset(&hdtemp, 0, sizeof(hdtemp));
     while(1){
         switch(state){
-            // starting state, waiting to recieve SYN
+            /* starting state, waiting to recieve SYN */
             case START:
                 printf("WAITING FOR SYN\n");
-                // reading socket and checking for errors
+                /* reading socket and checking for errors */
                 if((sock = readSock(&hdtemp, -1)) == -1){ // -1 argument = infinite timeout
                     perror("Could not read socket\n");
                 }
@@ -153,8 +151,9 @@ int TWH_loop(){
                     state = START;
                     break;
                 }
+                /* if no errors*/
                 else{
-                    // if no errors, send SYN+ACK and go to state R_WAIT
+                    /* right package, send ACK+SYN */
                     if(hdtemp.flags == SYN && hdtemp.seq == 1){
                         printf("recieved SYN\n");
                         memset(&hdtemp, 0, sizeof(hdtemp));
@@ -166,18 +165,19 @@ int TWH_loop(){
                         //printPacket(hdtemp);
                         state = R_WAIT;
                     }
-                    // wrong packet, restart the START case and wait again
+                    /* wrong packet, restart the START case and wait again */
                     else
                         printf("recieved wrong packet\n");
                 }
                 break;
-                // state waiting for ACK+WIN_SIZE
+                /* state waiting for ACK+WIN_SIZE */
             case R_WAIT:
                 printf("WAITING FOR ACK+WIN_SIZE\n");
-                // reading socket and checking for errors
+                /* reading socket and checking for errors */
                 if((sock = readSock(&hdtemp, 1000)) == -1){
                     perror("Could not read socket\n");
                 }
+                /* checksum error, wait for resend */
                 else if(sock == -2){
                     printf("checksum error, waiting for new packet\n");
                     //seqy = 0;
@@ -194,7 +194,7 @@ int TWH_loop(){
                     }
                     break;
                 }
-                // if error is timeout, resend previous packet and stay on this state
+                /* if error is timeout, resend previous packet and stay on this state */
                 else if(sock == -3){
                     printf("TIMEOUT\n");
                     if(seqy > 0)
@@ -208,8 +208,9 @@ int TWH_loop(){
                     //printPacket(hdtemp);
                     break;
                 }
-                // if no errors, send ACK+WIN_SIZE and go to state R_WAIT2
+                /* if no errors*/
                 else{
+                    /* right package, send ACK+WIN_SIZE */
                     if(hdtemp.ACK == seqy + 1 && hdtemp.windowsize != 0){
                         printf("recieved ACK+WIN_SIZE\n");
                         win_size = hdtemp.windowsize;
@@ -222,6 +223,7 @@ int TWH_loop(){
                         //printPacket(hdtemp);
                         state = R_WAIT2;
                     }
+                    /* wrong package, wait for resend */
                     else{
                         printf("recieved wrong packet, waiting for new packet\n");
                         int ret;
@@ -239,19 +241,20 @@ int TWH_loop(){
                 }
 
                 break;
-                // state waiting for final ACK from the client
+                /* state waiting for final ACK from the client */
             case R_WAIT2:
                 printf("WAITING FOR FINAL ACK\n");
-                // read socket and check for errors
+                /* read socket and check for errors */
                 if((sock = readSock(&hdtemp, 1000)) == -1){
                     perror("Could not read socket\n");
                 }
+                /* checksum error */
                 else if(sock == -2){
                     printf("checksum error\n");
                     seqy = 1;
                     break;
                 }
-                // if error is timeout, resend previous packet and stay on this state
+                /* if error is timeout, resend previous packet and stay on this state */
                 else if(sock == -3){
                     printf("TIMEOUT\n");
                     if(seqy > 0)
@@ -265,12 +268,14 @@ int TWH_loop(){
                     //printPacket(hdtemp);
                     break;
                 }
-                // if no erros and we recieve right ACK, go to state DONE
+                /* if no erros*/
                 else{
+                    /* right package, go to state DONE */
                     if(hdtemp.ACK == seqy + 1){
                         printf("recieved final ACK\n");
                         state = DONE;
                     }
+                    /* wrong package, wait for resend */
                     else{
                         printf("recieved wrong packet\n");
                         int ret;
@@ -288,7 +293,7 @@ int TWH_loop(){
                 }
                 //printPacket(hdtemp);
                 break;
-                // state DONE, there should now be a connection
+                /* state DONE, there should now be a connection */
             case DONE:
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
@@ -344,35 +349,30 @@ int SW_loop(){
         }
     }
 }
-// returns next state-machine to execute
+/* returns next state-machine to execute */
 int TD_loop(){
     printf("---Teardown---\n");
     int state = START;
     int sock;
     while(1){
         switch(state){
-            // starting state, if recieve FIN, send FINACK
+            /* starting state, if recieve FIN, send FINACK */
             case START:
                 printf("WAITING FOR FIN\n");
+                /* read socket and check for errors */
                 if((sock = readSock(&hdtemp, -1)) == -1){
                     perror("could not read socket\n");
                 }
+
+                /* checksum error, wait for resend */
                 else if(sock == -2){
                     printf("checksum error - waiting for resend\n");
                     break;
-                    /* int ret; */
-                    /* while(1){ */
-                    /*     ret = poll(&fd, 1, -1); */
-                    /*     if(ret == -1) */
-                    /*         printf("error: %s\n", strerror(errno)); */
-                    /*     else{ */
-                    /*         printf("packet found\n"); */
-                    /*         state = START; */
-                    /*         break; */
-                    /*     } */
-                    /* } */
                 }
+
+                /* if no errors */
                 else{
+                    /* right packet, send ACK+FIN */
                     if(hdtemp.flags == FIN){
                         printf("recieved FIN\n");
                         memset(&hdtemp, 0, sizeof(hdtemp));
@@ -385,17 +385,24 @@ int TD_loop(){
                         state = W1;
                         break;
                     }
+
+                    /* wrong packet, wait for resend */
                     else{
                         printf("recieved wrong packet - waiting for resend\n");
                         break;
                     }
                 }
 
+            /* state waiting for ACK */
             case W1:
                 printf("WAITING FOR ACK\n");
+
+                /* read socket and check for errors */
                 if((sock = readSock(&hdtemp, 1000)) == -1){
                     perror("could not read socket\n");
                 }
+
+                /* checksum error, wait for resend */
                 else if(sock == -2){
                     printf("checksum error - waiting for resend\n");
                     int ret;
@@ -410,6 +417,8 @@ int TD_loop(){
                         }
                     }
                 }
+
+                /* timeout error, resend ACK+FIN */
                 else if(sock == -3){
                     printf("TIMEOUT\n");
                     if(seqy > 0)
@@ -423,12 +432,17 @@ int TD_loop(){
                     state = W1;
                     break;
                 }
+
+                /* if no errors */
                 else{
+                    /* right packet, go to state DONE */
                     if(hdtemp.ACK == seqy + 1){
                         printf("recieved final ACK\n");
                         state = DONE;
                         break;
                     }
+
+                    /* wrong packet, resend ACK+FIN */
                     else{
                         printf("recieved wrong packet\n");
                         if(seqy > 0)
@@ -441,20 +455,10 @@ int TD_loop(){
                         //printPacket(hdtemp);
                         state = W1;
                         break;
-                        /* int ret; */
-                        /* while(1){ */
-                        /*     ret = poll(&fd, 1, -1); */
-                        /*     if(ret == -1) */
-                        /*         printf("error: %s\n", strerror(errno)); */
-                        /*     else{ */
-                        /*         printf("packet found\n"); */
-                        /*         state = W1; */
-                        /*         break; */
-                        /*     } */
-                        /* } */
                     }
                 }
 
+            /* Teardown done */
             case DONE:
                 printf("Teardown complete\n");
                 return EXIT;
