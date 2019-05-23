@@ -70,10 +70,12 @@ uint16_t checksum16(uint16_t *data, size_t len){
 }
 
 void printPacket(hd dg){
-    printf("flags: %d --- ", dg.flags);
-    printf("ACK: %d --- ", dg.ACK);
-    printf("seq: %d --- ", dg.seq);
-    printf("winsize: %d --- ", dg.windowsize);
+    printf("seqx: %d | ", seqx);
+    printf("seqy: %d | ", seqy);
+    printf("flags: %d | ", dg.flags);
+    printf("ACK: %d | ", dg.ACK);
+    printf("seq: %d | ", dg.seq);
+    printf("winsize: %d | ", dg.windowsize);
     printf("crc: %u\n", (unsigned int)dg.crc);
     return;
 }
@@ -83,6 +85,7 @@ void writeSock(hd *dg){
     //dg->crc = Fletcher16(dg->data, dg->length);
     //incr seq
     seqy++;
+    dg->seq = seqy;
     // send data
     if(sendto(sockfd, dg, sizeof(hd),
                 MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
@@ -114,7 +117,8 @@ int readSock(hd *recvDataGram, int timeout){
             if(n == -1)
                 return -1;
             // do checksum-test
-             uint16_t check;
+             //uint16_t check = checksum16(recvDataGram->data, recvDataGram->length);
+             uint16_t check = 0;
              if(check != recvDataGram->crc){
                 return -2;
             }
@@ -149,28 +153,14 @@ int TWH_loop(){
                 else{
                     if(hdtemp.flags == SYN && hdtemp.seq == 1){
                         memset(&hdtemp, 0, sizeof(hdtemp));
-                        /* hdtemp.data = "hejhej hahaaaaa\0"; */
-                        /* hdtemp.length = sizeof(hdtemp.data); */
                         hdtemp.ACK = seqx + 1;
                         hdtemp.flags = SYN;
                         writeSock(&hdtemp);
-                        //printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc);
                         printPacket(hdtemp);
                         state = R_WAIT;
                     }
-                    else{
-                        int ret;
-                        while(1){
-                            ret = poll(&fd, 1, -1); 
-                            if(ret == -1)
-                                printf("error: %s\n", strerror(errno));
-                            else{
-                                printf("packet found\n");
-                                state = START;
-                                break;
-                            }
-                        }
-                    }
+                    else
+                        printf("wrong packet\n");
                 }
                 break;
                 // state waiting for ACK+WIN_SIZE
@@ -193,7 +183,6 @@ int TWH_loop(){
                             state = R_WAIT;
                             break;
                         }
-
                     }
                     break;
                 }
@@ -257,6 +246,7 @@ int TWH_loop(){
                     writeSock(&hdtemp);
                     state = R_WAIT2;
                     /* printf("Resend-seqx = %d\nResend-seqy = %d\n", seqx, seqy); */
+                    printf("timeout\n");
                     printPacket(hdtemp);
                     break;
                 }
@@ -280,7 +270,7 @@ int TWH_loop(){
                     }
                 }
                 /* printf("seqx = %d\nseqy = %d\ncrc = %u\n", seqx, seqy, (unsigned int)hdtemp.crc); */
-                printPacket(hdtemp);
+                //printPacket(hdtemp);
                 break;
                 // state DONE, there should now be a connection
             case DONE:
@@ -304,7 +294,7 @@ int TD_loop(){
 /* void logic_loop(){ */
 /*     int nextMachine = 0; */
 /*     while(1){ */
-/*         printf("----SERVER----\n"); */
+/*         printf("|-SERVER|-\n"); */
 /*         hd *dGram; */
 /*         /1* n = recvfrom(sockfd, dGram, MAXLINE, *1/ */
 /*         /1*             MSG_WAITALL, ( struct sockaddr *) &cliaddr, *1/ */
@@ -341,7 +331,7 @@ int main(){
         perror("socket creation failed");
         exit(EXIT_FAILURE);
     }
-    printf(" ----SERVER----\n");
+    printf(" |-SERVER|-\n");
     memset(&servaddr, 0, sizeof(servaddr));
     memset(&cliaddr, 0, sizeof(cliaddr));
 
