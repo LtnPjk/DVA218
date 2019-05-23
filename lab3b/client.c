@@ -37,11 +37,11 @@
 #define TD 2
 
 typedef struct hd_struct {
+    uint16_t crc;
     int flags;
     int ACK;
     int seq;
     int windowsize;
-    uint16_t crc;
     char *data;
     int length;
     int id;
@@ -56,20 +56,27 @@ struct sockaddr_in servaddr, cliaddr;
 int len, n;
 int seqx = 0;
 int seqy = 0;
+hd hdtemp;
+
 // returns checksum of input bit-string
-uint16_t Fletcher16( uint8_t *data, int count){
-    uint16_t sum1 = 0;
-    uint16_t sum2 = 0;
-    int index;
-
-    for(index = 0; index < count; ++index ){
-        sum1 = (sum1 + data[index]) % 255;
-        sum2 = (sum2 + sum1) % 255;
+uint16_t checksum16(uint16_t *data, size_t len){
+    uint16_t checksum = 0;
+    size_t evn_len = len - len%2; // round down to even number of words
+    int i;
+    for(i = 0; i < evn_len; i += 2){
+        uint16_t val = (data[i] + data[i+1]) % 65536;
+        checksum += val;
     }
-    return (sum2 << 8 ) | sum1;
-
+    if(i < len) { // add last byte if data was rounded earlier
+        checksum += data[i] % 65536;
+    }
+    return checksum;
 }
-
+void dgram_create(hd * dgram, int seq){
+    memset(dgram, 0, sizeof(dgram));
+    dgram->windowsize = hdtemp.windowsize;
+    dgram->seq = seq;
+}
 void printPacket(hd dg){
     printf("seqx: %d | ", seqx);
     printf("seqy: %d | ", seqy);
@@ -121,7 +128,8 @@ int readSock(hd *recvDataGram, int timeout){
                 return -1;
             }
             // do checksum-test
-            uint16_t check = Fletcher16(recvDataGram->data, recvDataGram->length);
+            // RADEN NEDAN ÄR FUCKED
+            uint16_t check = checksum16((uint16_t *)(recvDataGram->data), recvDataGram->length);
             if(check != recvDataGram->crc){
                 return -2;
             }
@@ -134,7 +142,6 @@ int readSock(hd *recvDataGram, int timeout){
 int TWH_loop(){
     int state = START;
     int sock;
-    hd hdtemp;
     memset(&hdtemp, 0, sizeof(hdtemp));
     while(1){
         switch(state){
@@ -282,6 +289,37 @@ int TWH_loop(){
 
 int SW_loop(){
     printf("in SW\n");
+    int sock;
+    hd dgram_s;
+    hd dgram_r;
+    int lastACK = seqx;
+    hd winBuff[3];
+
+    while(1){
+        //fyll fönster
+        while(abs(seqx - lastACK) < hdtemp.windowsize){
+            seqx++;
+            dgram_create(&dgram_s, seqx);
+            writeSock(&dgram_s);
+        }
+        //läs socket
+        if((sock = readSock(&dgram_r, 1000)) == -1){
+            perror("could not read socket\n");
+        }
+        else if(sock == -2){
+            printf("CRC error\n");
+            dgram_create(&dgram_s, seqx + 1);
+            dgram_s.ACK = seqy + 1;
+            writeSock(&dgram_s);
+        }
+        else if(sock == -3){
+            printf("timeout error\n");
+            //GÖR INGET FÖR TILLFÄLLET
+        }
+        else{
+        }
+    }
+
 }
 
 int TD_loop(){

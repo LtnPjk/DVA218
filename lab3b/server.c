@@ -33,11 +33,11 @@
 #define TD 2
 
 typedef struct hd_struct {
+    uint16_t crc;
     int flags;
     int ACK;
     int seq;
     int windowsize;
-    uint16_t crc;
     char *data;
     int length;
     int id;
@@ -52,6 +52,7 @@ int len, n;
 int seqy = 0;
 int seqx = 0;
 int win_size;
+hd hdtemp;
 
 //hd *recvDataGram;
 
@@ -133,7 +134,6 @@ int makePkt(){
 int TWH_loop(){
     int state = START;
     int sock;
-    hd hdtemp;
     memset(&hdtemp, 0, sizeof(hdtemp));
     while(1){
         switch(state){
@@ -286,6 +286,48 @@ int TWH_loop(){
 // returns next state-machine to execute
 int SW_loop(){
     printf("in SW\n");
+    int sock;
+    int state = 0;
+    hd dgram_s;
+    hd dgram_r;
+    int lastACK;
+
+    while(1){
+        if((sock = readSock(&dgram_r, 1000)) == -1){
+            perror("could not read socket\n");
+        }
+        //CRC
+        else if(sock == -2){
+            printf("crc error\n");
+            memset(&dgram_s, 0, sizeof(dgram_s));
+            dgram_s.ACK = seqy + 1;
+            writeSock(&dgram_s);
+        }
+        //TIMEOUT
+        else if(sock == -3){
+            printf("timeout error\n");
+            memset(&dgram_s, 0, sizeof(dgram_s));
+            dgram_s.ACK = seqy + 1;
+            writeSock(&dgram_s);
+        }
+        else{
+            if(dgram_r.seq != seqy + 1){
+                memset(&dgram_s, 0, sizeof(dgram_s));
+                dgram_s.ACK = seqy + 1;
+                writeSock(&dgram_s);
+            }
+            else{
+                memset(&dgram_s, 0, sizeof(dgram_s));
+                seqy++;
+                dgram_s.ACK = seqy + 1;
+                writeSock(&dgram_s);
+                printPacket(dgram_r);
+                if(dgram_r.flags == FIN)
+                    hdtemp.seq = seqy;
+                    return TD;
+            }
+        }
+    }
 }
 // returns next state-machine to execute
 int TD_loop(){
