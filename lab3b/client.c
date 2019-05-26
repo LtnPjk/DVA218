@@ -53,13 +53,13 @@ typedef struct hd_struct {
 
 hd recvDataGram;
 int sockfd;
-void logic_loop();
 char buffer[MAXLINE];
 char *hello = "Hello from server";
 struct sockaddr_in servaddr, cliaddr;
 int len, n;
 int seqx = 0;
 int seqy = 0;
+int lastseqy = 0;
 hd hdtemp;
 
 // returns checksum of input bit-string
@@ -95,7 +95,7 @@ void printPacket(hd dg){
 void writeSock(hd *dg){
     len = sizeof(cliaddr);
     // calc checksum
-    //dg->crc = checksum16((uint16_t*)dg->data[sizeof(dg->crc)], (sizeof(hd)-sizeof(dg->crc)/2));
+    /* dg->crc = checksum16((uint16_t*)&(dg->flags), (sizeof(hd)-sizeof(uint16_t)/2)); */
     //incr seq
     seqx++;
     dg->seq = seqx;
@@ -207,7 +207,8 @@ int TWH_loop(){
                 /* if no erorrs*/
                 else{
                     /* right package, send ACK+WIN_SIZE*/
-                    if(hdtemp.flags == SYN && hdtemp.ACK == seqx + 1){
+                    if(hdtemp.flags == SYN && hdtemp.ACK == seqx + 1 && hdtemp.seq == lastseqy + 1){
+                        lastseqy = hdtemp.seq;
                         printf("recieved ACK+SYN\n");
                         memset(&hdtemp, 0, sizeof(hdtemp));
                         hdtemp.ACK = seqy + 1;
@@ -280,7 +281,7 @@ int TWH_loop(){
                 /* if no errors*/
                 else{
                     /* right package, send ACK */
-                    if(hdtemp.windowsize == WIN_SIZE && hdtemp.ACK == seqx +1){
+                    if(hdtemp.windowsize == WIN_SIZE && hdtemp.ACK == seqx +1 && hdtemp.seq == lastseqy + 1){
                         printf("recieved ACK+WIN_SIZE\n");
                         memset(&hdtemp, 0, sizeof(hdtemp));
                         hdtemp.ACK = seqy + 1;
@@ -360,6 +361,7 @@ int TD_loop(){
     printf("---Teardown---\n");
     int state = START;
     int sock;
+    lastseqy = seqy;
     while(1){
         switch(state){
             /* starting state, directly sending a FIN */
@@ -414,7 +416,8 @@ int TD_loop(){
                 /* if no errors */
                 else{
                     /* right package, send ACK */
-                    if(hdtemp.flags == FIN && hdtemp.ACK == seqx +1){
+                    if(hdtemp.flags == FIN && hdtemp.ACK == seqx +1 && hdtemp.seq == lastseqy + 1){
+                        lastseqy = hdtemp.seq;
                         printf("recieved ACK+FIN\n");
                         memset(&hdtemp, 0, sizeof(hdtemp));
                         hdtemp.ACK = seqy + 1;

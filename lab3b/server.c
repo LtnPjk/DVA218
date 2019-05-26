@@ -54,6 +54,7 @@ struct sockaddr_in servaddr, cliaddr;
 int len, n;
 int seqy = 0;
 int seqx = 0;
+int lastseqx = 0;
 int win_size;
 hd hdtemp;
 
@@ -86,7 +87,7 @@ void printPacket(hd dg){
 
 void writeSock(hd *dg){
     // calc checksum
-    //dg->crc = checksum16(dg->data, (sizeof(hd)-sizeof(dg->crc)/2);
+    /* dg->crc = checksum16(&(dg->flags), (sizeof(hd)-sizeof(uint16_t)/2)); */
     //incr seq
     seqy++;
     dg->seq = seqy;
@@ -154,7 +155,8 @@ int TWH_loop(){
                 /* if no errors*/
                 else{
                     /* right package, send ACK+SYN */
-                    if(hdtemp.flags == SYN && hdtemp.seq == 1){
+                    if(hdtemp.flags == SYN && hdtemp.seq == lastseqx + 1){
+                        lastseqx = hdtemp.seq;
                         printf("recieved SYN\n");
                         memset(&hdtemp, 0, sizeof(hdtemp));
                         //hdtemp.crc = 1;
@@ -211,7 +213,8 @@ int TWH_loop(){
                 /* if no errors*/
                 else{
                     /* right package, send ACK+WIN_SIZE */
-                    if(hdtemp.ACK == seqy + 1 && hdtemp.windowsize != 0){
+                    if(hdtemp.ACK == seqy + 1 && hdtemp.windowsize != 0 && hdtemp.seq == lastseqx + 1){
+                        lastseqx = hdtemp.seq;
                         printf("recieved ACK+WIN_SIZE\n");
                         win_size = hdtemp.windowsize;
                         memset(&hdtemp, 0, sizeof(hdtemp));
@@ -271,7 +274,7 @@ int TWH_loop(){
                 /* if no erros*/
                 else{
                     /* right package, go to state DONE */
-                    if(hdtemp.ACK == seqy + 1){
+                    if(hdtemp.ACK == seqy + 1 && hdtemp.seq == lastseqx + 1){
                         printf("recieved final ACK\n");
                         state = DONE;
                     }
@@ -354,6 +357,7 @@ int TD_loop(){
     printf("---Teardown---\n");
     int state = START;
     int sock;
+    lastseqx = seqx;
     while(1){
         switch(state){
             /* starting state, if recieve FIN, send FINACK */
@@ -373,7 +377,8 @@ int TD_loop(){
                 /* if no errors */
                 else{
                     /* right packet, send ACK+FIN */
-                    if(hdtemp.flags == FIN){
+                    if(hdtemp.flags == FIN && hdtemp.seq == lastseqx + 1){
+                        lastseqx = hdtemp.seq;
                         printf("recieved FIN\n");
                         memset(&hdtemp, 0, sizeof(hdtemp));
                         //hdtemp.crc = 1;
@@ -436,7 +441,7 @@ int TD_loop(){
                 /* if no errors */
                 else{
                     /* right packet, go to state DONE */
-                    if(hdtemp.ACK == seqy + 1){
+                    if(hdtemp.ACK == seqy + 1 && hdtemp.seq == lastseqx + 1){
                         printf("recieved final ACK\n");
                         state = DONE;
                         break;
