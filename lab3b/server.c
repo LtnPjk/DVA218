@@ -185,7 +185,7 @@ int TWH_loop(){
                     //seqy = 0;
                     int ret;
                     while(1){
-                        ret = poll(&fd, 1, -1); 
+                        ret = poll(&fd, 1, -1);
                         if(ret == -1)
                             printf("error: %s\n", strerror(errno));
                         else{
