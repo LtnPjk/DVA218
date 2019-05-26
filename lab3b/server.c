@@ -301,7 +301,7 @@ int TWH_loop(){
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
                 return TD;
-            default:
+                default:
                 break;
         }
     }
@@ -313,43 +313,26 @@ int SW_loop(){
     int state = 0;
     hd dgram_s;
     hd dgram_r;
-    int lastACK;
+    int lastACK = seqx;
 
     while(1){
+        memset(&dgram_s, 0, sizeof(dgram_s));
         if((sock = readSock(&dgram_r, 1000)) == -1){
             perror("could not read socket\n");
         }
-        //CRC
-        else if(sock == -2){
-            printf("crc error\n");
-            memset(&dgram_s, 0, sizeof(dgram_s));
-            dgram_s.ACK = seqy + 1;
-            writeSock(&dgram_s);
+        else if(sock < 0){
+            printf("ERROR: %d\n", sock);
+            dgram_s.ACK = lastACK;
         }
-        //TIMEOUT
-        else if(sock == -3){
-            printf("timeout error\n");
-            memset(&dgram_s, 0, sizeof(dgram_s));
-            dgram_s.ACK = seqy + 1;
-            writeSock(&dgram_s);
-        }
-        else{
-            if(dgram_r.seq != seqy + 1){
-                memset(&dgram_s, 0, sizeof(dgram_s));
-                dgram_s.ACK = seqy + 1;
-                writeSock(&dgram_s);
-            }
-            else{
-                memset(&dgram_s, 0, sizeof(dgram_s));
-                seqy++;
-                dgram_s.ACK = seqy + 1;
-                writeSock(&dgram_s);
-                printPacket(dgram_r);
-                if(dgram_r.flags == FIN)
-                    hdtemp.seq = seqy;
+        else if(sock >= 0){
+            lastACK = dgram_r.seq;
+            dgram_s.ACK = dgram_r.seq + 1;
+            writeSock(&dgram_r);
+
+            if(dgram_r.flags == FIN)
                 return TD;
-            }
         }
+
     }
 }
 /* returns next state-machine to execute */
