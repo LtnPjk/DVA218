@@ -59,18 +59,47 @@ int win_size;
 hd hdtemp;
 
 //hd *recvDataGram;
+uint16_t checksum(void* vdata,size_t length) {
+    // Cast the data pointer to one that can be indexed.
+    char* data=(char*)vdata;
 
+    // Initialise the accumulator.
+    uint32_t acc=0xffff;
+
+    // Handle complete 16-bit blocks.
+    for (size_t i=0;i+1<length;i+=2) {
+        uint16_t word;
+        memcpy(&word,data+i,2);
+        acc+=ntohs(word);
+        if (acc>0xffff) {
+            acc-=0xffff;
+        }
+    }
+
+    // Handle any partial block at the end of the data.
+    if (length&1) {
+        uint16_t word=0;
+        memcpy(&word,data+length-1,1);
+        acc+=ntohs(word);
+        if (acc>0xffff) {
+            acc-=0xffff;
+        }
+    }
+
+    // Return the checksum in network byte order.
+    return htons(~acc);
+}
 uint16_t checksum16(uint16_t *data, size_t len){
     uint16_t checksum = 0;
     size_t evn_len = len - len%2; // round down to even number of words
     int i;
-    for(i = 0; i < evn_len; i += 2){
+    for(i = 0; i < 10; i += 2){
         uint16_t val = (data[i] + data[i+1]) % 65536;
-        checksum += val;
+        checksum += val % 65536;
     }
-    if(i < len) { // add last byte if data was rounded earlier
-        checksum += data[i] % 65536;
-    }
+    /* if(i < len) { // add last byte if data was rounded earlier */
+    /*     checksum += data[i] % 65536; */
+    /* } */
     return checksum;
 }
 
@@ -87,11 +116,12 @@ void printPacket(hd dg){
 
 void writeSock(hd *dg){
     // calc checksum
-    dg->crc = checksum16((uint16_t*)&(dg->flags), (sizeof(hd)-sizeof(uint16_t))/2);
-    printf("crc: %u\n", (unsigned int)dg->crc);
+    /* dg->crc = checksum16((uint16_t*)&(dg->flags), (sizeof(hd)-sizeof(uint16_t))/2); */
+    /* printf("crc: %u\n", (unsigned int)dg->crc); */
     //incr seq
     seqy++;
     dg->seq = seqy;
+    dg->crc = checksum((void *)&(dg->flags), 30);
     // send data
     if(sendto(sockfd, dg, sizeof(hd),
                 MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
@@ -123,10 +153,14 @@ int readSock(hd *recvDataGram, int timeout){
             if(n == -1)
                 return -1;
             // do checksum-test
-            uint16_t check = checksum16((uint16_t*)&(recvDataGram->flags), (sizeof(hd)-sizeof(uint16_t))/2);
-            printf("crc: %u\n", (unsigned int)check);
+            /* uint16_t check = checksum16((uint16_t*)&(recvDataGram->flags), (sizeof(hd)-sizeof(uint16_t))/2); */
+            /* printf("crc: %u\n", (unsigned int)check); */
             //uint16_t check = 0;
+            //uint16_t check = checksum16(recvDataGram->data, recvDataGram->length);
+            uint16_t check = checksum((void *)&(recvDataGram->flags), 30);
             if(check != recvDataGram->crc){
+                printPacket(*recvDataGram);
+                printf("LOCAL CHKSUM: %u \n", check);
                 return -2;
             }
             else
@@ -302,7 +336,7 @@ int TWH_loop(){
             case DONE:
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
-                return TD;
+                return SW;
                 default:
                 break;
         }
@@ -459,6 +493,7 @@ int TD_loop(){
 
 // Driver code
 int main(){
+    printf("size of hd %d\n", sizeof(hd));
     // Creating socket file descriptor
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
         perror("socket creation failed");
