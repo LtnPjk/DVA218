@@ -62,18 +62,48 @@ int seqy = 0;
 int lastseqy = 0;
 hd hdtemp;
 
+uint16_t checksum(void* vdata,size_t length) {
+    // Cast the data pointer to one that can be indexed.
+    char* data=(char*)vdata;
+
+    // Initialise the accumulator.
+    uint32_t acc=0xffff;
+
+    // Handle complete 16-bit blocks.
+    for (size_t i=0;i+1<length;i+=2) {
+        uint16_t word;
+        memcpy(&word,data+i,2);
+        acc+=ntohs(word);
+        if (acc>0xffff) {
+            acc-=0xffff;
+        }
+    }
+
+    // Handle any partial block at the end of the data.
+    if (length&1) {
+        uint16_t word=0;
+        memcpy(&word,data+length-1,1);
+        acc+=ntohs(word);
+        if (acc>0xffff) {
+            acc-=0xffff;
+        }
+    }
+
+    // Return the checksum in network byte order.
+    return htons(~acc);
+}
 // returns checksum of input bit-string
 uint16_t checksum16(uint16_t *data, size_t len){
     uint16_t checksum = 0;
     size_t evn_len = len - len%2; // round down to even number of words
     int i;
-    for(i = 0; i < evn_len; i += 2){
+    for(i = 0; i < 10; i += 2){
         uint16_t val = (data[i] + data[i+1]) % 65536;
-        checksum += val;
+        checksum += val % 65536;
     }
-    if(i < len) { // add last byte if data was rounded earlier
-        checksum += data[i] % 65536;
-    }
+    /* if(i < len) { // add last byte if data was rounded earlier */
+    /*     checksum += data[i] % 65536; */
+    /* } */
     return checksum;
 }
 void dgram_create(hd * dgram, int seq){
@@ -95,7 +125,7 @@ void printPacket(hd dg){
 void writeSock(hd *dg){
     len = sizeof(cliaddr);
     // calc checksum
-    /* dg->crc = checksum16((uint16_t*)&(dg->flags), (sizeof(hd)-sizeof(uint16_t)/2)); */
+    dg->crc = checksum((void*)&(dg->flags), 30);
     //incr seq
     seqx++;
     dg->seq = seqx;
@@ -134,7 +164,7 @@ int readSock(hd *recvDataGram, int timeout){
             // do checksum-test
             // RADEN NEDAN ÄR FUCKED
             /* uint16_t check = checksum16((uint16_t *)(recvDataGram->data), recvDataGram->length); */
-            uint16_t check = 0;
+            uint16_t check = checksum((void *)&(recvDataGram->flags), 30);
             if(check != recvDataGram->crc){
                 return -2;
             }
@@ -160,7 +190,7 @@ int TWH_loop(){
                 printf("sending SYN\n");
                 writeSock(&hdtemp);
                 state = R_WAIT;
-                //printPacket(hdtemp);
+                printPacket(hdtemp);
                 break;
 
                 /* state waiting for SYN+ACK */
@@ -200,7 +230,7 @@ int TWH_loop(){
                     printf("resending SYN\n");
                     writeSock(&hdtemp);
                     state = R_WAIT;
-                    //printPacket(hdtemp);
+                    printPacket(hdtemp);
                     break;
                 }
 
@@ -215,7 +245,7 @@ int TWH_loop(){
                         hdtemp.windowsize = WIN_SIZE;
                         printf("sending ACK+WIN_SIZE\n");
                         writeSock(&hdtemp);
-                        //printPacket(hdtemp);
+                        printPacket(hdtemp);
                         state = W_WAIT;
                     }
 
@@ -274,7 +304,7 @@ int TWH_loop(){
                     printf("resending ACK+WIN_SIZE\n");
                     writeSock(&hdtemp);
                     state = W_WAIT;
-                    //printPacket(hdtemp);
+                    printPacket(hdtemp);
                     break;
                 }
 
@@ -287,7 +317,7 @@ int TWH_loop(){
                         hdtemp.ACK = seqy + 1;
                         printf("sending ACK\n");
                         writeSock(&hdtemp);
-                        //printPacket(hdtemp);
+                        printPacket(hdtemp);
                         state = DONE;
                     }
 
@@ -313,7 +343,7 @@ int TWH_loop(){
             case DONE:
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
-                return TD;
+                return SW;
 
             default:
                 break;
@@ -331,29 +361,24 @@ int SW_loop(){
 
     while(1){
         //fyll fönster
+        printf("WINSIZE: %d",hdtemp.windowsize);
         while(abs(seqx - lastACK) < hdtemp.windowsize){
-            seqx++;
+            printf("SENDING DATAGRAM:\n");
             dgram_create(&dgram_s, seqx);
             writeSock(&dgram_s);
+            printPacket(dgram_s);
         }
         //läs socket
         if((sock = readSock(&dgram_r, 1000)) == -1){
             perror("could not read socket\n");
         }
-        else if(sock == -2){
-            printf("CRC error\n");
-            dgram_create(&dgram_s, seqx + 1);
-            dgram_s.ACK = seqy + 1;
-            writeSock(&dgram_s);
-        }
-        else if(sock == -3){
-            printf("timeout error\n");
-            //GÖR INGET FÖR TILLFÄLLET
+        else if(sock < 0){
+            printf("ERROR: %d\n", sock);
         }
         else{
+            lastACK = dgram_r.ACK;
         }
     }
-
 }
 
 /* Teardown loop, returning next state-machine to execute */
