@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <poll.h>
+#include <time.h>
 
 #define PORT     5555
 #define MAXLINE 1024
@@ -103,6 +104,36 @@ uint16_t checksum16(uint16_t *data, size_t len){
     return checksum;
 }
 
+/* has a chance of changing the packet */
+int destroyPacket(hd *dg){
+    int Case;
+    if((rand() % 4) == 0){
+        Case = rand() % 3;
+        switch(Case){
+            /* sequence number order */
+            case 0:
+                printf("packet change: order\n");
+                if((rand() % 1) == 1)
+                    dg->seq++;
+                else
+                    dg->seq--;
+                return 2;
+            /* packet corruption */
+            case 1:
+                printf("packet change: corruption\n");
+                /* char randomletter = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[random () % 26]; */
+                /* strcpy(dg->data, &randomletter); */
+                dg->data = "Corrupted data";
+                return 0;
+            /* lost packet */
+            default:
+                printf("packet change: lost\n");
+                return 1;
+        }
+    }
+    return 0; //do nothing to packet
+}
+
 void printPacket(hd dg){
     printf("seqx: %d | ", seqx);
     printf("seqy: %d | ", seqy);
@@ -115,6 +146,7 @@ void printPacket(hd dg){
 }
 
 void writeSock(hd *dg){
+    int ret;
     // calc checksum
     /* dg->crc = checksum16((uint16_t*)&(dg->flags), (sizeof(hd)-sizeof(uint16_t))/2); */
     /* printf("crc: %u\n", (unsigned int)dg->crc); */
@@ -123,6 +155,13 @@ void writeSock(hd *dg){
     dg->seq = seqy;
     dg->crc = checksum((void *)&(dg->flags), 30);
     // send data
+    /* if packet is to be lost */
+    if((ret = destroyPacket(dg)) == 1)
+        return;
+    /* if sequence number is to be changed, a new crc must be calculated */
+    else if(ret == 2)
+        dg->crc = checksum((void*)&(dg->flags), 30);
+
     if(sendto(sockfd, dg, sizeof(hd),
                 MSG_CONFIRM, (const struct sockaddr *) &cliaddr,
                 sizeof(cliaddr)) == -1){
@@ -267,7 +306,7 @@ int TWH_loop(){
                         printf("recieved wrong packet, waiting for new packet\n");
                         int ret;
                         while(1){
-                            ret = poll(&fd, 1, -1); 
+                            ret = poll(&fd, 1, 1000); 
                             if(ret == -1)
                                 printf("error: %s\n", strerror(errno));
                             else{
@@ -336,7 +375,7 @@ int TWH_loop(){
             case DONE:
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
-                return SW;
+                return TD;
                 default:
                 break;
         }
@@ -493,6 +532,7 @@ int TD_loop(){
 
 // Driver code
 int main(){
+    srand(time(NULL));
     printf("size of hd %d\n", sizeof(hd));
     // Creating socket file descriptor
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {

@@ -17,6 +17,7 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <poll.h>
+#include <time.h>
 
 #define PORT 5555
 #define message 1024
@@ -106,6 +107,39 @@ uint16_t checksum16(uint16_t *data, size_t len){
     /* } */
     return checksum;
 }
+
+/* has a chance of changing the packet */
+int destroyPacket(hd *dg){
+    int Case;
+    if((rand() % 4) == 0){
+        Case = rand() % 3;
+        switch(Case){
+            /* sequence number order */
+            case 0:
+                printf("packet change: order\n");
+                if((rand() % 1) == 1)
+                    dg->seq++;
+                else
+                    dg->seq--;
+                return 2;
+            /* packet corruption */
+            case 1:
+                printf("packet change: corruption\n");
+                /* char randomletter = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[random () % 26]; */
+                /* printf("test: %s\n", randomletter); */
+                /* strcpy(dg->data, &randomletter); */
+                //strcpy(dg->data, "A");
+                dg->data = "Corrupted data";
+                return 0;
+            /* lost packet */
+            default:
+                printf("packet change: lost\n");
+                return 1;
+        }
+    }
+    return 0; //do nothing to packet
+}
+
 void dgram_create(hd * dgram, int seq){
     memset(dgram, 0, sizeof(dgram));
     dgram->windowsize = hdtemp.windowsize;
@@ -123,6 +157,7 @@ void printPacket(hd dg){
 }
 
 void writeSock(hd *dg){
+    int ret;
     len = sizeof(cliaddr);
     // calc checksum
     /* dg->crc = checksum16((uint16_t*)&(dg->flags), (sizeof(hd)-sizeof(uint16_t))/2); */
@@ -132,6 +167,13 @@ void writeSock(hd *dg){
     dg->seq = seqx;
     dg->crc = checksum((void*)&(dg->flags), 30);
     // send data
+    /* if packet is to be lost */
+    if((ret = destroyPacket(dg)) == 1)
+        return;
+    /* if sequence number is to be changed, a new crc must be calculated */
+    else if(ret == 2)
+        dg->crc = checksum((void*)&(dg->flags), 30);
+
     if(sendto(sockfd, dg, sizeof(hd),
                 MSG_CONFIRM, (const struct sockaddr *) &servaddr,
                 sizeof(servaddr)) == -1){
@@ -273,7 +315,7 @@ int TWH_loop(){
 
                 /* state waiting for ACK+WIN_SIZE */
             case W_WAIT:
-                printf("WAITING FOR ACK+WIN:SIZE\n");
+                printf("WAITING FOR ACK+WIN_SIZE\n");
 
                 /* read socket and check for errors */
                 if((sock = readSock(&hdtemp, 1000)) == -1){
@@ -327,7 +369,7 @@ int TWH_loop(){
 
                     /* wrong package, wait for resend */ 
                     else{
-                        printf("recieved wrong packet\n");
+                        printf("recieved wrong packet, waiting for resend\n");
                         int ret;
                         while(1){
                             ret = poll(&fd, 1, -1); 
@@ -347,7 +389,7 @@ int TWH_loop(){
             case DONE:
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
-                return SW;
+                return TD;
 
             default:
                 break;
@@ -534,6 +576,7 @@ int main(int argc, char *argv[]) {
 #define TWH 0
 #define SW 1
 #define TD 2
+    srand(time(NULL));
     recvDataGram.flags = 0;
     recvDataGram.ACK = 0;
     recvDataGram.seq = 0;
