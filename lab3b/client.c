@@ -95,7 +95,8 @@ void printPacket(hd dg){
 void writeSock(hd *dg){
     len = sizeof(cliaddr);
     // calc checksum
-    /* dg->crc = checksum16((uint16_t*)&(dg->flags), (sizeof(hd)-sizeof(uint16_t)/2)); */
+    dg->crc = checksum16((uint16_t*)&(dg->flags), (sizeof(hd)-sizeof(uint16_t))/2);
+    printf("crc: %u\n", (unsigned int)dg->crc);
     //incr seq
     seqx++;
     dg->seq = seqx;
@@ -133,8 +134,8 @@ int readSock(hd *recvDataGram, int timeout){
             }
             // do checksum-test
             // RADEN NEDAN ÄR FUCKED
-            /* uint16_t check = checksum16((uint16_t *)(recvDataGram->data), recvDataGram->length); */
-            uint16_t check = 0;
+            uint16_t check = checksum16((uint16_t*)&(recvDataGram->flags), (sizeof(hd)-sizeof(uint16_t))/2);
+            //uint16_t check = 0;
             if(check != recvDataGram->crc){
                 return -2;
             }
