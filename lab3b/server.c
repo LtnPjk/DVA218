@@ -212,6 +212,7 @@ int TWH_loop(){
     printf("---Three Way Handshake---\n");
     int state = START;
     int sock;
+    int errorCount = 0;
     memset(&hdtemp, 0, sizeof(hdtemp));
     while(1){
         switch(state){
@@ -306,7 +307,7 @@ int TWH_loop(){
                         printf("recieved wrong packet, waiting for new packet\n");
                         int ret;
                         while(1){
-                            ret = poll(&fd, 1, 1000); 
+                            ret = poll(&fd, 1, -1); 
                             if(ret == -1)
                                 printf("error: %s\n", strerror(errno));
                             else{
@@ -353,8 +354,28 @@ int TWH_loop(){
                         printf("recieved final ACK\n");
                         state = DONE;
                     }
+                    /* we will recieve this packet if client is still in R_WAIT */
+                    else if(hdtemp.ACK == seqy + 1 && hdtemp.windowsize != 0 && hdtemp.seq == lastseqx + 1){
+                        lastseqx = hdtemp.seq;
+                        printf("recieved ACK+WIN_SIZE\n");
+                        win_size = hdtemp.windowsize;
+                        memset(&hdtemp, 0, sizeof(hdtemp));
+                        //hdtemp.crc = 1;
+                        hdtemp.windowsize = win_size;
+                        hdtemp.ACK = seqx + 1;
+                        printf("sending ACK+WIN_SIZE\n");
+                        writeSock(&hdtemp);
+                        //printPacket(hdtemp);
+                        state = R_WAIT2;
+                    }
                     /* wrong package, wait for resend */
                     else{
+                        errorCount++;
+                        if(errorCount > 4){
+                            printf("guessing that client is in SW\n");
+                            state = DONE;
+                            break;
+                        }
                         printf("recieved wrong packet\n");
                         int ret;
                         while(1){
@@ -376,7 +397,7 @@ int TWH_loop(){
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
                 return TD;
-                default:
+            default:
                 break;
         }
     }
@@ -451,7 +472,10 @@ int TD_loop(){
 
                     /* wrong packet, wait for resend */
                     else{
+                        lastseqx = seqx;
                         printf("recieved wrong packet - waiting for resend\n");
+                        printf("recieved: ");
+                        printPacket(hdtemp);
                         break;
                     }
                 }
