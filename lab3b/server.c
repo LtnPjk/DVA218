@@ -142,8 +142,10 @@ void writeSock(hd *dg){
     dg->crc = checksum((void *)&(dg->flags), 30);
     // send data
     /* if packet is to be lost */
-    if((ret = destroyPacket(dg)) == 1)
+    if((ret = destroyPacket(dg)) == 1){
+        seqy--;
         return;
+    }
     /* if sequence number is to be changed, a new crc must be calculated */
     else if(ret == 2)
         dg->crc = checksum((void*)&(dg->flags), 30);
@@ -382,7 +384,7 @@ int TWH_loop(){
             case DONE:
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
-                return TD;
+                return SW;
 
             default:
                 break;
@@ -424,6 +426,7 @@ int SW_loop(){
 /* returns next state-machine to execute */
 int TD_loop(){
     printf("---Teardown---\n");
+    printf("seqx: %d, seqy: %d\n", seqx, seqy);
     int state = START;
     int sock;
     lastseqx = seqx;
