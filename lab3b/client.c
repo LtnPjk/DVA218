@@ -285,7 +285,7 @@ int TWH_loop(){
 
                     /* wrong package, wait for resend*/
                     else{
-                        printf("recieved wrong packet\n");
+                        printf("recieved wrong packet, waiting for resend\n");
                         int ret;
                         while(1){
                             ret = poll(&fd, 1, -1); 
@@ -350,13 +350,21 @@ int TWH_loop(){
                         memset(&hdtemp, 0, sizeof(hdtemp));
                         hdtemp.ACK = seqy + 1;
                         printf("sending ACK\n");
-                        writeSock(&hdtemp);
+                        for(int i = 0; i < 4; i++){
+                            writeSock(&hdtemp);
+                        }
                         //printPacket(hdtemp);
                         state = DONE;
                     }
 
+                    else if(hdtemp.flags == SYN && hdtemp.ACK == seqx + 1 && hdtemp.seq == lastseqy + 1){
+                        state = R_WAIT;
+                        break;
+                    }
+
                     /* wrong package, wait for resend */ 
                     else{
+                        lastseqy = hdtemp.seq;
                         printf("recieved wrong packet, waiting for resend\n");
                         int ret;
                         while(1){
@@ -452,7 +460,7 @@ int TD_loop(){
                 printf("sending FIN\n");
                 writeSock(&hdtemp);
                 state = W1;
-                //printPacket(hdtemp);
+                printPacket(hdtemp);
                 break;
 
                 /* state waiting for ACK+FIN */
