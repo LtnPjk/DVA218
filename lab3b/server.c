@@ -90,20 +90,6 @@ uint16_t checksum(void* vdata,size_t length) {
     // Return the checksum in network byte order.
     return htons(~acc);
 }
-uint16_t checksum16(uint16_t *data, size_t len){
-    uint16_t checksum = 0;
-    size_t evn_len = len - len%2; // round down to even number of words
-    int i;
-    for(i = 0; i < 10; i += 2){
-        uint16_t val = (data[i] + data[i+1]) % 65536;
-        checksum += val % 65536;
-    }
-    /* if(i < len) { // add last byte if data was rounded earlier */
-    /*     checksum += data[i] % 65536; */
-    /* } */
-    return checksum;
-}
-
 /* has a chance of changing the packet */
 int destroyPacket(hd *dg){
     int Case;
@@ -203,7 +189,7 @@ int readSock(hd *recvDataGram, int timeout){
                 return -2;
             }
             else
-                return -4;
+                return 0;
     }
 }
 
@@ -358,7 +344,7 @@ int TWH_loop(){
                         printf("recieved wrong packet\n");
                         int ret;
                         while(1){
-                            ret = poll(&fd, 1, -1); 
+                            ret = poll(&fd, 1, -1);
                             if(ret == -1)
                                 printf("error: %s\n", strerror(errno));
                             else{
@@ -375,7 +361,7 @@ int TWH_loop(){
             case DONE:
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
-                return TD;
+                return SW;
                 default:
                 break;
         }
@@ -392,17 +378,20 @@ int SW_loop(){
 
     while(1){
         memset(&dgram_s, 0, sizeof(dgram_s));
+        dgram_s.windowsize = win_size;
         if((sock = readSock(&dgram_r, 1000)) == -1){
             perror("could not read socket\n");
         }
         else if(sock < 0){
             printf("ERROR: %d\n", sock);
             dgram_s.ACK = lastACK;
+            writeSock(&dgram_s);
         }
         else if(sock >= 0){
             lastACK = dgram_r.seq;
             dgram_s.ACK = dgram_r.seq + 1;
-            writeSock(&dgram_r);
+            printf("SENDING ACK FOR PACKAGE: %d\n", dgram_s.ACK);
+            writeSock(&dgram_s);
 
             if(dgram_r.flags == FIN)
                 return TD;
