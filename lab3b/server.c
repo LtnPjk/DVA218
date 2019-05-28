@@ -143,7 +143,7 @@ void writeSock(hd *dg){
     // send data
     /* if packet is to be lost */
     if((ret = destroyPacket(dg)) == 1){
-        seqy--;
+        /* seqy--; */
         return;
     }
     /* if sequence number is to be changed, a new crc must be calculated */
@@ -290,6 +290,19 @@ int TWH_loop(){
                         //printPacket(hdtemp);
                         state = R_WAIT2;
                     }
+                    else if(hdtemp.flags == SYN){
+                        if(seqy > 0)
+                            seqy--;
+                        memset(&hdtemp, 0, sizeof(hdtemp));
+                        hdtemp.ACK = seqx + 1;
+                        hdtemp.flags = SYN;
+                        printf("resending ACK+SYN\n");
+                        writeSock(&hdtemp);
+                        state = R_WAIT;
+                        //printPacket(hdtemp);
+                        break;
+
+                    }
                     /* wrong package, wait for resend */
                     else{
                         printf("recieved wrong packet, waiting for new packet\n");
@@ -425,11 +438,17 @@ int SW_loop(){
             }
             //lastACK = dgram_r.seq;
             printf("SENDING ACK FOR PACKAGE: %d\n", dgram_s.ACK);
+            if(dgram_r.flags == FIN){
+                dgram_s.flags = FIN;
+            }
             writeSock(&dgram_s);
+            //printPacket(dgram_r);
             prevPack = dgram_r.seq;
             //if the recieved datagram has the FIN flag set, return TD to initiate tear-down
-            if(dgram_r.flags == FIN)
+            if(dgram_r.flags == FIN){
+                printf("FIN\n");
                 return TD;
+            }
         }
 
     }
@@ -445,44 +464,17 @@ int TD_loop(){
         switch(state){
             /* starting state, if recieve FIN, send FINACK */
             case START:
-                printf("WAITING FOR FIN\n");
-                /* read socket and check for errors */
-                if((sock = readSock(&hdtemp, -1)) == -1){
-                    perror("could not read socket\n");
-                }
-
-                /* checksum error, wait for resend */
-                else if(sock == -2){
-                    printf("checksum error - waiting for resend\n");
-                    break;
-                }
-
-                /* if no errors */
-                else{
-                    /* right packet, send ACK+FIN */
-                    if(hdtemp.flags == FIN && hdtemp.seq == lastseqx + 1){
-                        lastseqx = hdtemp.seq;
-                        printf("recieved FIN\n");
-                        memset(&hdtemp, 0, sizeof(hdtemp));
-                        //hdtemp.crc = 1;
-                        hdtemp.ACK = seqx + 1;
-                        hdtemp.flags = FIN;
-                        printf("sending ACK+FIN\n");
-                        writeSock(&hdtemp);
-                        //printPacket(hdtemp);
-                        state = W1;
-                        break;
-                    }
-
-                    /* wrong packet, wait for resend */
-                    else{
-                        lastseqx = seqx;
-                        printf("recieved wrong packet - waiting for resend\n");
-                        printf("recieved: ");
-                        printPacket(hdtemp);
-                        break;
-                    }
-                }
+                lastseqx = hdtemp.seq;
+                printf("recieved FIN\n");
+                memset(&hdtemp, 0, sizeof(hdtemp));
+                //hdtemp.crc = 1;
+                hdtemp.ACK = seqx + 1;
+                hdtemp.flags = FIN;
+                printf("sending ACK+FIN\n");
+                writeSock(&hdtemp);
+                //printPacket(hdtemp);
+                state = W1;
+                break;
 
                 /* state waiting for ACK */
             case W1:
@@ -527,15 +519,28 @@ int TD_loop(){
                 /* if no errors */
                 else{
                     /* right packet, go to state DONE */
-                    if(hdtemp.ACK == seqy + 1 && hdtemp.seq == lastseqx + 1){
+                    if(hdtemp.ACK == seqy + 1){
                         printf("recieved final ACK\n");
                         state = DONE;
                         break;
+                    }
+                    else if(hdtemp.flags == FIN){
+                    if(seqy > 0)
+                        seqy--;
+                    memset(&hdtemp, 0, sizeof(hdtemp));
+                    hdtemp.ACK = seqx + 1;
+                    hdtemp.flags = FIN;
+                    printf("resending ACK+FIN\n");
+                    writeSock(&hdtemp);
+                    //printPacket(hdtemp);
+                    state = W1;
+                    break;
                     }
 
                     /* wrong packet, resend ACK+FIN */
                     else{
                         printf("recieved wrong packet\n");
+                        printPacket(hdtemp);
                         if(seqy > 0)
                             seqy--;
                         memset(&hdtemp, 0, sizeof(hdtemp));
@@ -543,16 +548,20 @@ int TD_loop(){
                         hdtemp.flags = FIN;
                         printf("resending ACK+FIN\n");
                         writeSock(&hdtemp);
-                        //printPacket(hdtemp);
+                        printPacket(hdtemp);
                         state = W1;
                         break;
                     }
                 }
+                break;
 
                 /* Teardown done */
             case DONE:
                 printf("Teardown complete\n");
                 return EXIT;
+            default:
+                printf("default cd \n");
+                break;
         }
     }
 

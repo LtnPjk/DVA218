@@ -157,7 +157,7 @@ void writeSock(hd *dg){
     // send data
     /* if packet is to be lost */
     if((ret = destroyPacket(dg)) == 1){
-        seqx--;
+        /* seqx--; */
         return;
     }
     /* if sequence number is to be changed, a new crc must be calculated */
@@ -406,7 +406,7 @@ int SW_loop(){
     hd dgram_r;
     int lastACK = seqx;
 
-    int FINpack;
+    int FINpack = 10000;
 
     while(1){
         //fyll fönster
@@ -415,13 +415,19 @@ int SW_loop(){
             //printf("CHECKPOINT: 1\n");
             if(seqx == 19){
                 dgram_s.flags = FIN;
-                FINpack = seqx;
-                break;
+                printf("FIN\n");
+                FINpack = seqx; 
+                //printf("CHECKPOINT: 2\n");
+                writeSock(&dgram_s);
+                //printf("CHECKPOINT: 3\n");
+                printPacket(dgram_s);
+                return TD;
             }
             //printf("CHECKPOINT: 2\n");
             writeSock(&dgram_s);
             //printf("CHECKPOINT: 3\n");
-            printPacket(dgram_s);
+            //printPacket(dgram_s);
+
         }
         //read socket
         if((sock = readSock(&dgram_r, 2000)) == -1){
@@ -436,12 +442,11 @@ int SW_loop(){
             }
         }
         else if (dgram_r.ACK > 0){
+            //printPacket(dgram_r);
             lastACK = dgram_r.ACK;
             if(dgram_r.ACK < seqx)
                 seqx = dgram_r.ACK;
             printf("ACK for package %d recieved\n", dgram_r.ACK);
-            if(lastACK == FINpack + 1)
-                return TD;
         }
     }
 }
@@ -452,23 +457,12 @@ int TD_loop(){
     /* seqy++; */
     /* seqx++; */
     printf("seqx: %d, seqy: %d\n", seqx, seqy);
-    int state = START;
+    int state = W1;
     int sock;
     lastseqy = seqy;
     while(1){
         switch(state){
-            /* starting state, directly sending a FIN */
-            case START:
-                printf("READY TO SEND FIN\n");
-                memset(&hdtemp, 0, sizeof(hdtemp));
-                hdtemp.flags = FIN;
-                printf("sending FIN\n");
-                writeSock(&hdtemp);
-                state = W1;
-                printPacket(hdtemp);
-                break;
-
-                /* state waiting for ACK+FIN */
+                           /* state waiting for ACK+FIN */
             case W1:
                 printf("WAITING FOR ACK+FIN\n");
 
@@ -509,7 +503,7 @@ int TD_loop(){
                 /* if no errors */
                 else{
                     /* right package, send ACK */
-                    if(hdtemp.flags == FIN && hdtemp.ACK == seqx +1 && hdtemp.seq == lastseqy + 1){
+                    if(hdtemp.flags == FIN && hdtemp.ACK == seqx +1){
                         lastseqy = hdtemp.seq;
                         printf("recieved ACK+FIN\n");
                         memset(&hdtemp, 0, sizeof(hdtemp));
@@ -523,29 +517,36 @@ int TD_loop(){
 
                     /* wrong package, wait for resend */
                     else{
-                        printf("recieved wrong packet - waiting for resend\n");
-                        printPacket(hdtemp);
-                        int ret;
-                        while(1){
-                            ret = poll(&fd, 1, -1);
-                            if(ret == -1)
-                                printf("error: %s\n", strerror(errno));
-                            else{
-                                printf("new packet found\n");
-                                state = W1;
-                                break;
-                            }
+                        memset(&hdtemp, 0, sizeof(hdtemp));
+                    hdtemp.flags = FIN;
+                    printf("resending FIN\n");
+                    writeSock(&hdtemp);
+                    state = W1;
+                    //printPacket(hdtemp);
+                    break;
+
+                        /* printf("recieved wrong packet - waiting for resend\n"); */
+                        /* printPacket(hdtemp); */
+                        /* int ret; */
+                        /* while(1){ */
+                        /*     ret = poll(&fd, 1, -1); */
+                        /*     if(ret == -1) */
+                        /*         printf("error: %s\n", strerror(errno)); */
+                        /*     else{ */
+                        /*         printf("new packet found\n"); */
+                        /*         state = W1; */
+                        /*         break; */
+                            /* } */
                         }
                     }
                     break;
-                }
 
                 /* case waiting for either a package or timeout */
             case W2:
                 printf("WAITING FOR PACKAGE OR TIMEOUT\n");
 
                 /* read socket and check for errors */
-                if((sock = readSock(&hdtemp, 1500)) == -1){
+                if((sock = readSock(&hdtemp, 2000)) == -1){
                     perror("could not read socket\n");
                 }
 
@@ -574,7 +575,7 @@ int TD_loop(){
                 /* its waiting state */
                 else{
                     printf("recieved a packet:\n");
-                    printPacket(hdtemp);
+                    //printPacket(hdtemp);
                     if(seqx > 0)
                         seqx--;
                     memset(&hdtemp, 0, sizeof(hdtemp));
