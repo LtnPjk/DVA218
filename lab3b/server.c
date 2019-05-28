@@ -391,7 +391,7 @@ int TWH_loop(){
 }
 // returns next state-machine to execute
 int SW_loop(){
-    printf("in SW\n");
+    printf("---Sliding Window---\n");
     int sock;
     int state = 0;
     hd dgram_s;
