@@ -93,20 +93,6 @@ uint16_t checksum(void* vdata,size_t length) {
     // Return the checksum in network byte order.
     return htons(~acc);
 }
-// returns checksum of input bit-string
-uint16_t checksum16(uint16_t *data, size_t len){
-    uint16_t checksum = 0;
-    size_t evn_len = len - len%2; // round down to even number of words
-    int i;
-    for(i = 0; i < 10; i += 2){
-        uint16_t val = (data[i] + data[i+1]) % 65536;
-        checksum += val % 65536;
-    }
-    /* if(i < len) { // add last byte if data was rounded earlier */
-    /*     checksum += data[i] % 65536; */
-    /* } */
-    return checksum;
-}
 
 /* has a chance of changing the packet */
 int destroyPacket(hd *dg){
@@ -141,9 +127,11 @@ int destroyPacket(hd *dg){
 }
 
 void dgram_create(hd * dgram, int seq){
-    memset(dgram, 0, sizeof(dgram));
-    dgram->windowsize = hdtemp.windowsize;
+    memset(dgram, 0, sizeof(hd));
+    dgram->windowsize = WIN_SIZE;
     dgram->seq = seq;
+    char data[10] = "DaTa";
+    //strncpy(dgram->data, data, 10);
 }
 void printPacket(hd dg){
     printf("seqx: %d | ", seqx);
@@ -216,7 +204,7 @@ int readSock(hd *recvDataGram, int timeout){
             }
             else
                 //return strlen(recvDataGram->data);
-                return -4;
+                return 0;
     }
 }
 
@@ -397,7 +385,7 @@ int TWH_loop(){
             case DONE:
                 printf(">Three Way Handshake Done\n");
                 //printPacket(hdtemp);
-                return TD;
+                return SW;
 
             default:
                 break;
@@ -413,24 +401,40 @@ int SW_loop(){
     int lastACK = seqx;
     hd winBuff[3];
 
+    int sentPackages = 0;
+    int FINpack;
+
     while(1){
         //fyll fönster
-        printf("WINSIZE: %d",hdtemp.windowsize);
-        while(abs(seqx - lastACK) < hdtemp.windowsize){
-            printf("SENDING DATAGRAM:\n");
+        while(abs(seqx - lastACK) < WIN_SIZE){
             dgram_create(&dgram_s, seqx);
+            //printf("CHECKPOINT: 1\n");
+            if(sentPackages == 16){
+                dgram_s.flags = FIN;
+                FINpack = seqx;
+                break;
+            }
+            //printf("CHECKPOINT: 2\n");
             writeSock(&dgram_s);
+            sentPackages++;
+            //printf("CHECKPOINT: 3\n");
             printPacket(dgram_s);
         }
         //läs socket
-        if((sock = readSock(&dgram_r, 1000)) == -1){
+        if((sock = readSock(&dgram_r, 2000)) == -1){
             perror("could not read socket\n");
         }
         else if(sock < 0){
             printf("ERROR: %d\n", sock);
+            if(sock == -3){
+                seqx = lastACK;
+            }
         }
-        else{
+        else if (dgram_r.ACK > 0){
             lastACK = dgram_r.ACK;
+            printf("ACK for package %d recieved\n", dgram_r.ACK);
+            if(lastACK == FINpack + 1)
+                return TD;
         }
     }
 }
