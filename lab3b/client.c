@@ -396,44 +396,49 @@ int TWH_loop(){
 }
 
 int SW_loop(){
+    /* Fill window
+     * Read socket for ACK:s
+     * if ACK is recieved for FINpack (the hard-coded final package), init TD
+     * */
     printf("in SW\n");
     int sock;
     hd dgram_s;
     hd dgram_r;
     int lastACK = seqx;
-    hd winBuff[3];
 
-    int sentPackages = 0;
     int FINpack;
 
     while(1){
         //fyll fönster
-        while(abs(seqx - lastACK) < WIN_SIZE){
+        while(seqx - lastACK < WIN_SIZE){
             dgram_create(&dgram_s, seqx);
             //printf("CHECKPOINT: 1\n");
-            if(sentPackages == 16){
+            if(seqx == 19){
                 dgram_s.flags = FIN;
                 FINpack = seqx;
                 break;
             }
             //printf("CHECKPOINT: 2\n");
             writeSock(&dgram_s);
-            sentPackages++;
             //printf("CHECKPOINT: 3\n");
             printPacket(dgram_s);
         }
-        //läs socket
+        //read socket
         if((sock = readSock(&dgram_r, 2000)) == -1){
             perror("could not read socket\n");
         }
         else if(sock < 0){
             printf("ERROR: %d\n", sock);
+            //if error was timeout, move back seqx to lastACK
             if(sock == -3){
+                printf("SETTING seqx = %d \n", lastACK);
                 seqx = lastACK;
             }
         }
         else if (dgram_r.ACK > 0){
             lastACK = dgram_r.ACK;
+            if(dgram_r.ACK < seqx)
+                seqx = dgram_r.ACK;
             printf("ACK for package %d recieved\n", dgram_r.ACK);
             if(lastACK == FINpack + 1)
                 return TD;

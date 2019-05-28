@@ -399,24 +399,35 @@ int SW_loop(){
     hd dgram_s;
     hd dgram_r;
     int lastACK = seqx;
+    int prevPack = seqx;
 
     while(1){
+        //clear memory for datagram
         memset(&dgram_s, 0, sizeof(dgram_s));
+        //set datagram window size
         dgram_s.windowsize = win_size;
         if((sock = readSock(&dgram_r, 1000)) == -1){
             perror("could not read socket\n");
         }
+        //if sock < 0, something went wrong, handle all that here
         else if(sock < 0){
             printf("ERROR: %d\n", sock);
             dgram_s.ACK = lastACK;
             writeSock(&dgram_s);
         }
+        //if we could read datagram without errors, send ACK
         else if(sock >= 0){
-            lastACK = dgram_r.seq;
-            dgram_s.ACK = dgram_r.seq + 1;
+            if(dgram_r.seq != prevPack + 1){
+                dgram_s.ACK = prevPack + 1;
+            }
+            else{
+                dgram_s.ACK = dgram_r.seq + 1;
+            }
+            //lastACK = dgram_r.seq;
             printf("SENDING ACK FOR PACKAGE: %d\n", dgram_s.ACK);
             writeSock(&dgram_s);
-
+            prevPack = dgram_r.seq;
+            //if the recieved datagram has the FIN flag set, return TD to initiate tear-down
             if(dgram_r.flags == FIN)
                 return TD;
         }
