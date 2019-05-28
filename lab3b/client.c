@@ -156,8 +156,10 @@ void writeSock(hd *dg){
     dg->crc = checksum((void*)&(dg->flags), 30);
     // send data
     /* if packet is to be lost */
-    if((ret = destroyPacket(dg)) == 1)
+    if((ret = destroyPacket(dg)) == 1){
+        seqx--;
         return;
+    }
     /* if sequence number is to be changed, a new crc must be calculated */
     else if(ret == 2)
         dg->crc = checksum((void*)&(dg->flags), 30);
@@ -447,6 +449,9 @@ int SW_loop(){
 /* Teardown loop, returning next state-machine to execute */
 int TD_loop(){
     printf("---Teardown---\n");
+    /* seqy++; */
+    /* seqx++; */
+    printf("seqx: %d, seqy: %d\n", seqx, seqy);
     int state = START;
     int sock;
     lastseqy = seqy;
@@ -519,6 +524,7 @@ int TD_loop(){
                     /* wrong package, wait for resend */
                     else{
                         printf("recieved wrong packet - waiting for resend\n");
+                        printPacket(hdtemp);
                         int ret;
                         while(1){
                             ret = poll(&fd, 1, -1);
